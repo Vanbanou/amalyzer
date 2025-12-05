@@ -59,7 +59,7 @@ else()
 endif()
 
 # Exec
-add_executable(amalyzer main.cpp)
+add_executable(amalyzer main.cpp config_manager.cpp)
 
 # Link libraries
 target_link_libraries(amalyzer PRIVATE

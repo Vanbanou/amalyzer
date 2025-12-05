@@ -19,6 +19,7 @@
 // ==============================
 // Classe Amalyzer que faz a análise de áudio usando Superpowered SDK
 #include "analyzer.h"
+#include "config_manager.h"
 
 // ==============================
 // 📦 BIBLIOTECAS TAGLIB
@@ -163,7 +164,7 @@ std::string toLower(const std::string& str) {
 void drawProgressBar(int current, int total, const std::string& currentFile) {
     if (IS_SILENT) return;
     
-    int barWidth = 30;  // Largura da barra (otimizado para mobile)
+    int barWidth = 20;  // Largura da barra (otimizado para mobile)
     float progress = (float)current / total;
     int pos = barWidth * progress;
     
@@ -498,7 +499,7 @@ void findFiles(const fs::path& root, std::vector<std::string>& files, const Prog
  * 
  * Usa larguras fixas para garantir alinhamento perfeito das colunas.
  */
-void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
+void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args, ConfigManager& config) {
     if (args.quiet) return;
 
     if (results.empty()) {
@@ -509,24 +510,27 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
     if (args.listMode) {
         // Lista ultra compacta com larguras fixas
         for(const auto& res : results) {
-            // Nome do arquivo (25 chars fixos)
-            std::cout << padString(res.filename, 25);
+            // Nome do arquivo (configurável)
+            int nameWidth = config.getInt("name_w", 25);
+            std::cout << padString(res.filename, nameWidth);
             
-            // Artista (sempre 18 chars: " - " + 15 chars)
+            // Artista (configurável)
+            int artistWidth = config.getInt("artist_w", 15);
             std::cout << DIM << " - ";
             if (!res.artist.empty()) {
-                std::cout << padString(res.artist, 15);
+                std::cout << padString(res.artist, artistWidth);
             } else {
-                std::cout << padString("", 15);  // Espaço vazio se não houver artista
+                std::cout << padString("", artistWidth);  // Espaço vazio se não houver artista
             }
             std::cout << RESET;
             
-            // Álbum (sempre 24 chars: " [" + 20 chars + "]")
+            // Álbum (configurável)
+            int albumWidth = config.getInt("album_w", 20);
             std::cout << DIM << " [";
             if (!res.album.empty()) {
-                std::cout << padString(res.album, 20);
+                std::cout << padString(res.album, albumWidth);
             } else {
-                std::cout << padString("", 20);  // Espaço vazio se não houver álbum
+                std::cout << padString("", albumWidth);  // Espaço vazio se não houver álbum
             }
             std::cout << "]" << RESET;
             
@@ -537,8 +541,9 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
     } else {
         // Análise compacta - uma linha por arquivo
         for(const auto& res : results) {
-            // Nome (fixo 20 chars)
-            std::cout << padString(res.filename, 20);
+            // Nome (configurável)
+            int nameWidth = config.getInt("ana_name_w", 20);
+            std::cout << padString(res.filename, nameWidth);
             
             // BPM (3 chars fixos)
             if(res.bpm >= 0.1) {
@@ -645,7 +650,9 @@ void printHelp(const char* progName) {
               << "Saída/Tags:\n"
               << "  -sort <list>     Ordenar (name,bpm,size,key,energy)\n"
               << "  -put <list>      Escrever tags (bpm,energy,key)\n"
-              << "  -putforce        Forçar escrita (sobrescrever álbum)\n\n"
+              << "  -putforce        Forçar escrita (sobrescrever álbum)\n"
+              << "  -config <k=v>    Atualizar configuração (ex: name_w=50)\n"
+              << "  -config          Listar configurações atuais\n\n"
               << "Ex: " << progName << " -r -put bpm,key -sort bpm ./musicas\n";
 }
 
@@ -668,6 +675,7 @@ void printHelp(const char* progName) {
  * 9. Saída (CSV ou tabela no terminal)
  */
 int main(int argc, char* argv[]) {
+    ConfigManager config;
     ProgramArgs args;
     
     // ==============================
@@ -724,6 +732,24 @@ int main(int argc, char* argv[]) {
             std::string item;
             args.sortBy.clear();
             while (std::getline(ss, item, ',')) args.sortBy.push_back(toLower(item));
+        }
+        else if (arg == "-config") {
+            if (i + 1 < argc && argv[i+1][0] != '-') {
+                std::string configPair = argv[++i];
+                size_t delimiterPos = configPair.find('=');
+                if (delimiterPos != std::string::npos) {
+                    std::string key = configPair.substr(0, delimiterPos);
+                    std::string value = configPair.substr(delimiterPos + 1);
+                    config.setValue(key, value);
+                    config.save();
+                    log("SUCCESS", "Config atualizada: " + key + "=" + value);
+                } else {
+                    log("ERROR", "Formato inválido para -config. Use key=value");
+                }
+            } else {
+                config.print();
+                return 0;
+            }
         }
         else if (arg[0] != '-') args.paths.push_back(arg);  // Argumentos sem '-' são caminhos
     }
@@ -911,7 +937,7 @@ int main(int argc, char* argv[]) {
                 std::cout << BOLD << "📊 Resultados (" << results.size() << ")" << RESET << "\n\n";
             }
         }
-        printTable(results, args);
+        printTable(results, args, config);
         
         // Resumo ultra compacto
         if (!IS_SILENT) {
