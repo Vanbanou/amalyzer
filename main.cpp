@@ -29,17 +29,17 @@
 namespace fs = std::filesystem;
 
 // ==============================
-// 🎨 CONSTANTES COMPACTAS
+// 🎨 CONSTANTES OTIMIZADAS
 // ==============================
 
-const std::string RESET = "\033[0m";
+const std::string R = "\033[0m";
 const std::string RED = "\033[91m";
-const std::string GREEN = "\033[92m";
-const std::string YELLOW = "\033[93m";
-const std::string BLUE = "\033[94m";
-const std::string CYAN = "\033[96m";
-const std::string MAGENTA = "\033[95m";
-const std::string BOLD = "\033[1m";
+const std::string GRN = "\033[92m";
+const std::string YEL = "\033[93m";
+const std::string BLU = "\033[94m";
+const std::string CYN = "\033[96m";
+const std::string MAG = "\033[95m";
+const std::string B = "\033[1m";
 const std::string DIM = "\033[2m";
 
 bool IS_SILENT = false;
@@ -47,8 +47,6 @@ bool IS_SILENT = false;
 // ==============================
 // 🎵 ESTRUTURAS
 // ==============================
-
-// AudioAnalysis is now defined in analyzer.h
 
 struct ProgramArgs {
     std::vector<std::string> paths;
@@ -58,7 +56,6 @@ struct ProgramArgs {
     std::string outputFile;
     bool quiet = false;
     
-    // Filters
     double minBpm = 0.0;
     double maxBpm = 0.0;
     double minSizeMB = 0.0;
@@ -66,7 +63,6 @@ struct ProgramArgs {
     std::string targetKey = "";
     int limit = 0;
 
-    // Output/Action
     std::vector<std::string> tagsToWrite;
     bool putForce = false;
     bool listMode = false;
@@ -75,479 +71,402 @@ struct ProgramArgs {
 };
 
 // ==============================
-// 🛠️ FUNÇÕES AUXILIARES
+// 🛠️ FUNÇÕES COMPACTAS
 // ==============================
 
-std::string truncate(const std::string& str, size_t width) {
-    if (str.length() > width) {
-        return str.substr(0, width - 1) + "…";
-    }
+std::string trunc(const std::string& str, size_t w) {
+    if (str.length() > w) return str.substr(0, w - 1) + "…";
     return str;
 }
 
-std::string toLower(const std::string& str) {
-    std::string lower = str;
-    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-    return lower;
+std::string lower(const std::string& str) {
+    std::string l = str;
+    std::transform(l.begin(), l.end(), l.begin(), ::tolower);
+    return l;
 }
 
-// Barra de progresso compacta
-void drawProgressBar(int current, int total, const std::string& currentFile) {
+void progress(int cur, int tot, const std::string& file) {
     if (IS_SILENT) return;
     
-    int barWidth = 30; // Reduzido para mobile
-    float progress = (float)current / total;
-    int pos = barWidth * progress;
+    int w = 30;
+    float p = (float)cur / tot;
+    int pos = w * p;
     
-    std::cout << "\r" << CYAN << "[";
-    for (int i = 0; i < barWidth; ++i) {
-        if (i < pos) std::cout << GREEN << "█";
-        else std::cout << DIM << "░";
+    std::cout << "\r" << CYN << "[";
+    for (int i = 0; i < w; ++i) {
+        if (i < pos) std::cout << GRN << "=" << CYN;
+        else if (i == pos) std::cout << GRN << ">" << CYN;
+        else std::cout << DIM << "." << CYN;
     }
-    std::cout << CYAN << "]" << RESET;
+    std::cout << "]" << R;
     
-    // Informações compactas
-    std::cout << " " << BOLD << (int)(progress * 100.0) << "%";
-    std::cout << " " << CYAN << "(" << current << "/" << total << ")" << RESET;
-    
-    // Nome do arquivo muito curto
-    if (!currentFile.empty()) {
-        std::cout << " " << truncate(fs::path(currentFile).filename().string(), 15);
-    }
-    std::flush(std::cout);
+    std::cout << " " << B << GRN << std::setw(3) << (int)(p * 100.0) << "%" << R;
+    std::cout << " " << CYN << "(" << cur << "/" << tot << ")" << R;
+    std::cout << " " << DIM << trunc(file, 25) << R << "  " << std::flush;
 }
 
-// Logs compactos
-void log(const std::string& level, const std::string& message, const std::string& detail = "") {
-    if (IS_SILENT && level != "ERROR") return;
+void log(const std::string& lvl, const std::string& msg, const std::string& det = "") {
+    if (IS_SILENT && lvl != "ERR") return;
 
-    std::string prefix;
-    if (level == "INFO") prefix = BLUE + "ℹ ";
-    else if (level == "WARNING") prefix = YELLOW + "⚠ ";
-    else if (level == "ERROR") prefix = RED + "✗ ";
-    else if (level == "SUCCESS") prefix = GREEN + "✓ ";
-    else prefix = "";
+    if (lvl == "INF") std::cout << BLU << "[i]" << R;
+    else if (lvl == "WRN") std::cout << YEL << "[!]" << R;
+    else if (lvl == "ERR") std::cerr << RED << "[x]" << R;
+    else if (lvl == "OK") std::cout << GRN << "[✓]" << R;
+    else std::cout << "   ";
 
-    if (level == "ERROR") {
-        std::cerr << prefix << RESET << message;
-        if (!detail.empty()) std::cerr << " " << DIM << "(" << detail << ")" << RESET;
-        std::cerr << std::endl;
-    } else {
-        std::cout << prefix << RESET << message;
-        if (!detail.empty()) std::cout << " " << DIM << "(" << detail << ")" << RESET;
-        std::cout << std::endl;
-    }
+    std::string out = msg;
+    if (!det.empty()) out += " (" + det + ")";
+    
+    if (lvl == "ERR") std::cerr << " " << out << std::endl;
+    else std::cout << " " << out << std::endl;
 }
 
 // ==============================
-// 💾 JSON / METADATA
+// 💾 JSON COMPACTO
 // ==============================
 
-std::string escapeJsonString(const std::string& s) {
+std::string escJson(const std::string& s) {
     std::ostringstream o;
     for (char c : s) {
         switch (c) {
             case '"': o << "\\\""; break;
             case '\\': o << "\\\\"; break;
+            case '\b': o << "\\b"; break;
+            case '\f': o << "\\f"; break;
             case '\n': o << "\\n"; break;
             case '\r': o << "\\r"; break;
             case '\t': o << "\\t"; break;
             default:
-                if (c >= 0 && c <= 0x1f) {
+                if ('\x00' <= c && c <= '\x1f')
                     o << "\\u" << std::hex << std::setw(4) << std::setfill('0') << (int)c;
-                } else {
-                    o << c;
-                }
+                else o << c;
         }
     }
     return o.str();
 }
 
-void saveMetadataFile(const AudioAnalysis& data) {
-    if (data.path.empty()) return;
-
-    fs::path p(data.path);
-    fs::path jsonPath = p.parent_path() / (p.stem().string() + p.extension().string() + ".analisemetadata");
+void saveMeta(const AudioAnalysis& d) {
+    if (d.path.empty()) return;
+    fs::path p(d.path);
+    fs::path jsonPath = p.parent_path() / (p.stem().string() + ".meta.json");
     
-    log("INFO", "Salvando metadata: " + p.filename().string());
+    log("INF", "Salvando metadados", trunc(jsonPath.filename().string(), 20));
 
     std::ofstream f(jsonPath);
     if (!f.is_open()) {
-        log("ERROR", "Erro ao salvar metadata", jsonPath.string());
+        log("ERR", "Erro ao salvar JSON", jsonPath.string());
         return;
     }
 
     f << "{\n";
-    f << "  \"filename\": \"" << escapeJsonString(data.filename) << "\",\n";
-    f << "  \"title\": \"" << escapeJsonString(data.title) << "\",\n";
-    f << "  \"artist\": \"" << escapeJsonString(data.artist) << "\",\n";
-    f << "  \"album\": \"" << escapeJsonString(data.album) << "\",\n";
-    f << "  \"genre\": \"" << escapeJsonString(data.genre) << "\",\n";
-    f << "  \"bpm\": " << std::fixed << std::setprecision(2) << data.bpm << ",\n";
-    f << "  \"key\": \"" << escapeJsonString(data.keyCamelot) << "\",\n";
-    f << "  \"energy\": " << std::fixed << std::setprecision(2) << data.energy << ",\n";
-    f << "  \"length\": " << std::fixed << std::setprecision(2) << data.durationSec << ",\n";
-    f << "  \"size_mb\": " << std::fixed << std::setprecision(2) << data.fileSizeMB << "\n";
+    f << "  \"file\":\"" << escJson(d.filename) << "\",\n";
+    f << "  \"title\":\"" << escJson(d.title) << "\",\n";
+    f << "  \"artist\":\"" << escJson(d.artist) << "\",\n";
+    f << "  \"album\":\"" << escJson(d.album) << "\",\n";
+    f << "  \"genre\":\"" << escJson(d.genre) << "\",\n";
+    f << "  \"bpm\":" << std::fixed << std::setprecision(2) << d.bpm << ",\n";
+    f << "  \"key\":\"" << escJson(d.keyCamelot) << "\",\n";
+    f << "  \"energy\":" << std::fixed << std::setprecision(2) << d.energy << ",\n";
+    f << "  \"dur\":" << std::fixed << std::setprecision(2) << d.durationSec << ",\n";
+    f << "  \"size\":" << std::fixed << std::setprecision(2) << d.fileSizeMB << ",\n";
+    f << "  \"sr\":" << d.sampleRate << ",\n";
+    f << "  \"ch\":" << d.channels << ",\n";
+    f << "  \"br\":" << d.bitrate << "\n";
     f << "}";
 }
 
 // ==============================
-// 🏷️ ESCRITA DE TAGS
+// 🏷️ TAGS COMPACTAS
 // ==============================
 
-std::string cleanAlbumPrefix(const std::string& albumStr) {
-    if (albumStr.empty()) return "";
-    std::string temp = albumStr;
-    int count = 0;
-    while (count < 3) {
-        size_t pos = temp.find(" | ");
+std::string cleanPrefix(const std::string& s) {
+    if (s.empty()) return "";
+    std::string t = s;
+    int cnt = 0;
+    while (cnt < 3) {
+        size_t pos = t.find(" | ");
         if (pos == std::string::npos) break;
-        std::string prefix = temp.substr(0, pos);
-        bool isPrefix = false;
-        if (std::all_of(prefix.begin(), prefix.end(), [](char c){ return ::isalnum(c) || c == '.' || c == '#'; })) {
-            isPrefix = true;
-        }
-        if (isPrefix) temp = temp.substr(pos + 3);
+        std::string pre = t.substr(0, pos);
+        bool isPre = std::all_of(pre.begin(), pre.end(), [](char c){ return ::isalnum(c) || c == '.' || c == '#'; });
+        if (isPre) t = t.substr(pos + 3);
         else break;
-        count++;
+        cnt++;
     }
-    return temp;
+    return t;
 }
 
-void writeTags(const AudioAnalysis& res, const std::vector<std::string>& tagsToWrite, bool force) {
-    if (tagsToWrite.empty() || (res.bpm < 0.1 && res.energy < 0.01)) return;
+void writeTags(const AudioAnalysis& r, const std::vector<std::string>& tags, bool force) {
+    if (tags.empty() || (r.bpm < 0.1 && r.energy < 0.01)) return;
 
-    std::stringstream bpmSs, energySs;
-    bpmSs << std::fixed << std::setprecision(0) << std::round(res.bpm);
-    energySs << std::fixed << std::setprecision(2) << res.energy;
-    
-    std::string bpmStr = bpmSs.str();
-    std::string energyStr = energySs.str();
-    std::string keyStr = res.keyCamelot;
+    std::string bpmStr = std::to_string((int)std::round(r.bpm));
+    std::string energyStr = std::to_string((int)(r.energy * 100)) + "%";
+    std::string keyStr = r.keyCamelot;
 
     std::vector<std::string> parts;
-    if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end()) parts.push_back(bpmStr);
-    if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end()) parts.push_back(energyStr);
-    if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end()) parts.push_back(keyStr);
-
+    if (std::find(tags.begin(), tags.end(), "bpm") != tags.end()) parts.push_back(bpmStr);
+    if (std::find(tags.begin(), tags.end(), "energy") != tags.end()) parts.push_back(energyStr);
+    if (std::find(tags.begin(), tags.end(), "key") != tags.end()) parts.push_back(keyStr);
     if (parts.empty()) return;
 
-    std::string newPrefix;
+    std::string prefix;
     for (size_t i = 0; i < parts.size(); ++i) {
-        newPrefix += parts[i];
-        if (i < parts.size() - 1) newPrefix += " | ";
+        prefix += parts[i];
+        if (i < parts.size() - 1) prefix += "|";
     }
 
     try {
-        TagLib::FileRef f(res.path.c_str());
+        TagLib::FileRef f(r.path.c_str());
         if (f.isNull() || !f.tag()) {
-            log("ERROR", "Erro ao abrir arquivo", res.filename);
+            log("ERR", "Falha ao abrir tags", r.filename);
             return;
         }
 
         TagLib::Tag *tag = f.tag();
-        std::string currentAlbum = tag->album().toCString(true);
+        std::string curr = tag->album().toCString(true);
         std::string finalAlbum;
 
         if (force) {
-            finalAlbum = newPrefix;
+            finalAlbum = prefix;
         } else {
-            std::string cleaned = cleanAlbumPrefix(currentAlbum);
-            if (cleaned.empty()) finalAlbum = newPrefix;
-            else finalAlbum = newPrefix + " | " + cleaned;
+            std::string cleaned = cleanPrefix(curr);
+            if (cleaned.empty()) finalAlbum = prefix;
+            else finalAlbum = prefix + " | " + cleaned;
         }
 
         tag->setAlbum(finalAlbum);
 
-        // Configurar frames ID3v2
         if (TagLib::ID3v2::Tag *id3 = dynamic_cast<TagLib::ID3v2::Tag *>(tag)) {
-            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end()) {
-                 TagLib::ByteVector frameId("TBPM");
-                 if (!id3->frameList(frameId).isEmpty()) id3->removeFrames(frameId);
-                 TagLib::ID3v2::TextIdentificationFrame *frame = new TagLib::ID3v2::TextIdentificationFrame(frameId);
+            if (std::find(tags.begin(), tags.end(), "bpm") != tags.end()) {
+                 TagLib::ByteVector fid("TBPM");
+                 if (!id3->frameList(fid).isEmpty()) id3->removeFrames(fid);
+                 TagLib::ID3v2::TextIdentificationFrame *frame = new TagLib::ID3v2::TextIdentificationFrame(fid);
                  frame->setText(bpmStr);
                  id3->addFrame(frame);
             }
-            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end()) {
-                 TagLib::ByteVector frameId("TKEY");
-                 if (!id3->frameList(frameId).isEmpty()) id3->removeFrames(frameId);
-                 TagLib::ID3v2::TextIdentificationFrame *frame = new TagLib::ID3v2::TextIdentificationFrame(frameId);
+            if (std::find(tags.begin(), tags.end(), "key") != tags.end()) {
+                 TagLib::ByteVector fid("TKEY");
+                 if (!id3->frameList(fid).isEmpty()) id3->removeFrames(fid);
+                 TagLib::ID3v2::TextIdentificationFrame *frame = new TagLib::ID3v2::TextIdentificationFrame(fid);
                  frame->setText(keyStr);
                  id3->addFrame(frame);
             }
-            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end()) {
-                TagLib::ID3v2::FrameList txxxFrames = id3->frameList("TXXX");
-                for (TagLib::ID3v2::Frame *frame : txxxFrames) {
-                    if (TagLib::ID3v2::UserTextIdentificationFrame *txxx = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(frame)) {
-                        if (txxx->description() == "ENERGY") {
-                            id3->removeFrame(frame);
-                        }
+            if (std::find(tags.begin(), tags.end(), "energy") != tags.end()) {
+                TagLib::ID3v2::FrameList txxx = id3->frameList("TXXX");
+                for (TagLib::ID3v2::Frame *fr : txxx) {
+                    if (TagLib::ID3v2::UserTextIdentificationFrame *t = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(fr)) {
+                        if (t->description() == "ENERGY") id3->removeFrame(fr);
                     }
                 }
-                TagLib::ID3v2::UserTextIdentificationFrame *txxx = new TagLib::ID3v2::UserTextIdentificationFrame();
-                txxx->setDescription("ENERGY");
-                txxx->setText(energyStr);
-                id3->addFrame(txxx);
+                TagLib::ID3v2::UserTextIdentificationFrame *txxxNew = new TagLib::ID3v2::UserTextIdentificationFrame();
+                txxxNew->setDescription("ENERGY");
+                txxxNew->setText(energyStr);
+                id3->addFrame(txxxNew);
             }
         } else if (TagLib::Ogg::XiphComment *ogg = dynamic_cast<TagLib::Ogg::XiphComment *>(tag)) {
-             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end()) ogg->addField("BPM", bpmStr);
-             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end()) ogg->addField("INITIALKEY", keyStr);
-             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end()) ogg->addField("ENERGY", energyStr);
+             if (std::find(tags.begin(), tags.end(), "bpm") != tags.end()) ogg->addField("BPM", bpmStr);
+             if (std::find(tags.begin(), tags.end(), "key") != tags.end()) ogg->addField("INITIALKEY", keyStr);
+             if (std::find(tags.begin(), tags.end(), "energy") != tags.end()) ogg->addField("ENERGY", energyStr);
         }
 
         if (f.save()) {
-            log("SUCCESS", "Tags salvas: " + truncate(finalAlbum, 40), res.filename);
+            log("OK", "Tags: " + trunc(finalAlbum, 30), trunc(r.filename, 15));
         } else {
-            log("ERROR", "Erro ao salvar tags", res.filename);
+            log("ERR", "Falha ao salvar", r.filename);
         }
 
     } catch (const std::exception& e) {
-        log("ERROR", "Exceção: " + std::string(e.what()), res.filename);
+        log("ERR", "Exceção: " + std::string(e.what()), r.filename);
     }
 }
 
 // ==============================
-// 📂 ARQUIVOS E DIRETÓRIOS
+// 📂 FILES COMPACTO
 // ==============================
 
 void findFiles(const fs::path& root, std::vector<std::string>& files, const ProgramArgs& args) {
     try {
         if (fs::is_regular_file(root)) {
-            std::string ext = toLower(root.extension().string());
-            if (std::find(args.extensions.begin(), args.extensions.end(), ext) != args.extensions.end()) {
+            std::string ext = lower(root.extension().string());
+            if (std::find(args.extensions.begin(), args.extensions.end(), ext) != args.extensions.end())
                 files.push_back(root.string());
-            }
             return;
         }
 
         if (fs::is_directory(root)) {
-            if (args.recursive) {
-                for (const auto& entry : fs::recursive_directory_iterator(root)) {
-                    if (entry.is_regular_file()) {
-                        std::string ext = toLower(entry.path().extension().string());
-                        if (std::find(args.extensions.begin(), args.extensions.end(), ext) != args.extensions.end()) {
-                            files.push_back(entry.path().string());
-                        }
-                    }
-                }
-            } else {
-                for (const auto& entry : fs::directory_iterator(root)) {
-                    if (entry.is_regular_file()) {
-                        std::string ext = toLower(entry.path().extension().string());
-                        if (std::find(args.extensions.begin(), args.extensions.end(), ext) != args.extensions.end()) {
-                            files.push_back(entry.path().string());
-                        }
-                    }
+            auto iter = args.recursive ? fs::recursive_directory_iterator(root) : fs::directory_iterator(root);
+            for (const auto& e : iter) {
+                if (e.is_regular_file()) {
+                    std::string ext = lower(e.path().extension().string());
+                    if (std::find(args.extensions.begin(), args.extensions.end(), ext) != args.extensions.end())
+                        files.push_back(e.path().string());
                 }
             }
         }
     } catch (const std::exception& e) {
-        log("ERROR", "Erro ao escanear: " + std::string(e.what()));
+        log("ERR", "Erro no scan: " + std::string(e.what()));
     }
 }
 
 // ==============================
-// 📊 SAÍDA COMPACTA
+// 📊 SAÍDA ULTRA-COMPACTA
 // ==============================
 
-void printCompactTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
-    if (args.quiet || results.empty()) return;
-
-    // Cabeçalho minimalista
-    if (!IS_SILENT) {
-        if (args.listMode) {
-            std::cout << CYAN << "📁 LISTA (" << results.size() << " arquivos)" << RESET << "\n";
-        } else {
-            std::cout << GREEN << "📊 ANÁLISE (" << results.size() << " arquivos)" << RESET << "\n";
-        }
-        std::cout << std::string(60, '-') << "\n";
+void printCompact(std::vector<AudioAnalysis>& res, const ProgramArgs& args) {
+    if (args.quiet) return;
+    if (res.empty()) {
+        log("INF", "Sem resultados");
+        return;
     }
 
-    // Linhas compactas
-    for(const auto& res : results) {
-        if (args.listMode) {
-            // Modo lista: nome + metadata básica
-            std::cout << truncate(res.filename, 30);
-            if (!res.title.empty()) {
-                std::cout << " - " << truncate(res.title, 20);
-            }
-            std::cout << " " << DIM << std::fixed << std::setprecision(1) << res.fileSizeMB << "MB" << RESET;
-            std::cout << "\n";
-        } else {
-            // Modo análise: tudo em uma linha
-            // Nome do arquivo
-            std::cout << truncate(res.filename, 20);
-            
-            // BPM
-            if(res.bpm >= 0.1) {
-                std::cout << " " << GREEN << std::setw(3) << (int)res.bpm << "bpm" << RESET;
-            } else {
-                std::cout << " " << DIM << "---" << RESET;
-            }
-            
-            // Key
-            if(!res.keyCamelot.empty() && res.keyCamelot != "???") {
-                std::cout << " " << YELLOW << res.keyCamelot << RESET;
-            }
-            
-            // Energy (apenas se significativa)
-            if(res.energy >= 0.1) {
-                std::cout << " E:" << std::fixed << std::setprecision(1) << res.energy;
-            }
-            
-            // Tamanho
-            std::cout << " " << DIM << std::fixed << std::setprecision(1) << res.fileSizeMB << "M" << RESET;
-            
-            std::cout << "\n";
+    for(const auto& r : res) {
+        // Nome (15 chars)
+        std::cout << trunc(r.filename, 15);
+        
+        // Metadados básicos
+        if (!r.title.empty() || !r.artist.empty()) {
+            std::cout << DIM << " | " << R;
+            if (!r.artist.empty()) std::cout << trunc(r.artist, 10);
+            if (!r.title.empty()) std::cout << " - " << trunc(r.title, 12);
         }
-    }
-    
-    // Rodapé minimalista
-    if (!IS_SILENT) {
-        std::cout << std::string(60, '-') << "\n";
+        
+        // Análise se disponível
+        if (!args.listMode) {
+            if (r.bpm >= 0.1) std::cout << " " << GRN << (int)r.bpm << R;
+            if (r.energy >= 0.01) std::cout << " E" << std::fixed << std::setprecision(0) << r.energy*100 << "%";
+            if (!r.keyCamelot.empty() && r.keyCamelot != "???") std::cout << " " << YEL << r.keyCamelot << R;
+            std::cout << DIM << " " << std::fixed << std::setprecision(1) << r.fileSizeMB << "MB" << R;
+        }
+        
+        std::cout << "\n";
     }
 }
 
-void saveCsv(const std::vector<AudioAnalysis>& results, const std::string& filename) {
-    std::ofstream f(filename);
+void saveCsv(const std::vector<AudioAnalysis>& res, const std::string& fname) {
+    std::ofstream f(fname);
     if (!f.is_open()) {
-        log("ERROR", "Erro ao criar CSV: " + filename);
+        log("ERR", "Não criou CSV: " + fname);
         return;
     }
     
-    // Cabeçalho compacto
-    f << "arquivo,caminho,bpm,energy,key,tempo,tamanho,titulo,artista,album\n";
+    f << "file,path,bpm,energy,key,dur,size,title,artist,album,genre\n";
     
-    for (const auto& r : results) {
-        f << "\"" << r.filename << "\","
-          << "\"" << r.path << "\","
+    for (const auto& r : res) {
+        auto q = [](const std::string& s) {
+            std::string t = s;
+            size_t pos = 0;
+            while ((pos = t.find('"', pos)) != std::string::npos) {
+                t.replace(pos, 1, "\"\"");
+                pos += 2;
+            }
+            return "\"" + t + "\"";
+        };
+
+        f << q(r.filename) << ","
+          << q(r.path) << ","
           << std::fixed << std::setprecision(2) << r.bpm << ","
           << std::fixed << std::setprecision(2) << r.energy << ","
-          << "\"" << r.keyCamelot << "\","
+          << q(r.keyCamelot) << ","
           << std::fixed << std::setprecision(2) << r.durationSec << ","
           << std::fixed << std::setprecision(2) << r.fileSizeMB << ","
-          << "\"" << r.title << "\","
-          << "\"" << r.artist << "\","
-          << "\"" << r.album << "\"\n";
+          << q(r.title) << ","
+          << q(r.artist) << ","
+          << q(r.album) << ","
+          << q(r.genre) << "\n";
     }
-    log("SUCCESS", "CSV salvo: " + filename);
+    log("OK", "CSV salvo: " + fname);
 }
 
 // ==============================
 // ❓ HELP COMPACTO
 // ==============================
 
-void printHelp(const char* progName) {
-    std::cout << "🎵 Amalyzer - Analisador de Áudio (Mobile)\n\n"
-              << "Uso: " << progName << " [opções] <arquivos/pastas>\n\n"
-              << "Opções principais:\n"
-              << "  -r          Busca recursiva\n"
+void help(const char* prog) {
+    std::cout << "Amalyzer - Analisador de Áudio (Termux)\n\n"
+              << "Uso: " << prog << " [opções] <arquivos>\n\n"
+              << "Opções:\n"
+              << "  -r          Recursivo\n"
               << "  -q          Silencioso\n"
               << "  -l          Lista rápida\n"
               << "  -csv        Saída CSV\n"
-              << "  -o <file>   Salvar saída\n"
-              << "  -meta       Gerar metadata\n"
+              << "  -o FILE     Salvar em arquivo\n"
+              << "  -meta       Gerar JSON\n"
               << "  -limit N    Limitar arquivos\n\n"
               << "Filtros:\n"
               << "  -bpm-min N  BPM mínimo\n"
               << "  -bpm-max N  BPM máximo\n"
-              << "  -size-min N Tamanho min (MB)\n"
-              << "  -size-max N Tamanho max (MB)\n"
-              << "  -key K      Key Camelot\n\n"
+              << "  -size-min N Tamanho mínimo MB\n"
+              << "  -size-max N Tamanho máximo MB\n"
+              << "  -key K      Filtro por key\n"
+              << "  -ext LIST   Extensões (mp3,flac)\n\n"
               << "Tags:\n"
-              << "  -put bpm,energy,key  Escrever tags\n"
-              << "  -put-force           Forçar escrita\n"
-              << "  -sort campo          Ordenar\n\n"
-              << "Ex: " << progName << " -r -put bpm,key ./musicas\n";
+              << "  -put LIST   Escrever tags (bpm,energy,key)\n"
+              << "  -put-force  Substituir album\n"
+              << "  -sort LIST  Ordenar (name,bpm,size,key,energy)\n\n"
+              << "Ex: " << prog << " -r -put bpm,key -sort bpm ./musicas\n";
 }
 
 // ==============================
-// 🚀 MAIN (OTIMIZADA)
+// 🚀 MAIN COMPACTA
 // ==============================
 
 int main(int argc, char* argv[]) {
     ProgramArgs args;
     
-    // Parse arguments
+    // Parse args
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "-h" || arg == "--help") {
-            printHelp(argv[0]);
-            return 0;
-        }
+        if (arg == "-h" || arg == "--help") { help(argv[0]); return 0; }
         else if (arg == "-r") args.recursive = true;
         else if (arg == "-csv") args.csv = true;
         else if (arg == "-q") { args.quiet = true; IS_SILENT = true; }
-        else if (arg == "-l" || arg == "--list") args.listMode = true;
+        else if (arg == "-l") args.listMode = true;
         else if (arg == "-put-force") args.putForce = true;
         else if (arg == "-meta") args.meta = true;
         else if (arg == "-o" && i + 1 < argc) args.outputFile = argv[++i];
-        else if (arg == "-limit" && i + 1 < argc) {
-             try { args.limit = std::stoi(argv[++i]); } catch (...) {}
-        }
-        else if (arg == "-size-min" && i + 1 < argc) {
-             try { args.minSizeMB = std::stod(argv[++i]); } catch (...) {}
-        }
-        else if (arg == "-size-max" && i + 1 < argc) {
-             try { args.maxSizeMB = std::stod(argv[++i]); } catch (...) {}
-        }
-        else if (arg == "-bpm-min" && i + 1 < argc) {
-            try { args.minBpm = std::stod(argv[++i]); } catch (...) {}
-        }
-        else if (arg == "-bpm-max" && i + 1 < argc) {
-            try { args.maxBpm = std::stod(argv[++i]); } catch (...) {}
-        }
+        else if (arg == "-limit" && i + 1 < argc) { try { args.limit = std::stoi(argv[++i]); } catch (...) {} }
+        else if (arg == "-size-min" && i + 1 < argc) { try { args.minSizeMB = std::stod(argv[++i]); } catch (...) {} }
+        else if (arg == "-size-max" && i + 1 < argc) { try { args.maxSizeMB = std::stod(argv[++i]); } catch (...) {} }
+        else if (arg == "-bpm-min" && i + 1 < argc) { try { args.minBpm = std::stod(argv[++i]); } catch (...) {} }
+        else if (arg == "-bpm-max" && i + 1 < argc) { try { args.maxBpm = std::stod(argv[++i]); } catch (...) {} }
         else if (arg == "-key" && i + 1 < argc) args.targetKey = argv[++i];
         else if (arg == "-ext" && i + 1 < argc) {
-            std::string extList = argv[++i];
-            std::stringstream ss(extList);
+            std::stringstream ss(argv[++i]);
             std::string item;
             args.extensions.clear();
             while (std::getline(ss, item, ',')) {
                 if (item[0] != '.') item = "." + item;
-                args.extensions.push_back(toLower(item));
+                args.extensions.push_back(lower(item));
             }
         }
         else if (arg == "-put" && i + 1 < argc) {
-            std::string tags = argv[++i];
-            std::stringstream ss(tags);
+            std::stringstream ss(argv[++i]);
             std::string item;
-            while (std::getline(ss, item, ',')) args.tagsToWrite.push_back(toLower(item));
+            while (std::getline(ss, item, ',')) args.tagsToWrite.push_back(lower(item));
         }
         else if (arg == "-sort" && i + 1 < argc) {
-            std::string sort = argv[++i];
-            std::stringstream ss(sort);
+            std::stringstream ss(argv[++i]);
             std::string item;
             args.sortBy.clear();
-            while (std::getline(ss, item, ',')) args.sortBy.push_back(toLower(item));
+            while (std::getline(ss, item, ',')) args.sortBy.push_back(lower(item));
         }
         else if (arg[0] != '-') args.paths.push_back(arg);
     }
 
     if (args.paths.empty()) {
-        printHelp(argv[0]);
+        help(argv[0]);
         return 1;
     }
 
-    // Inicialização minimalista
-    if (!IS_SILENT) {
-        #ifndef _WIN32
-        system("clear");
-        #endif
-        std::cout << GREEN << "🎵 AMALYZER" << RESET << " (mobile)\n";
-    }
-
+    // Não limpar tela no Termux
     Superpowered::Initialize("ExampleLicenseKey-WillExpire-OnNextUpdate");
     Amalyzer amalyzer;
 
     // Encontrar arquivos
     std::vector<std::string> files;
-    for (const auto& p : args.paths) {
-        findFiles(p, files, args);
-    }
+    for (const auto& p : args.paths) findFiles(p, files, args);
 
     if (files.empty()) {
-        log("INFO", "Nenhum arquivo encontrado.");
+        log("INF", "Nenhum arquivo encontrado");
         return 0;
     }
 
@@ -555,48 +474,45 @@ int main(int argc, char* argv[]) {
         files.resize(args.limit);
     }
 
+    // Cabeçalho mínimo
     if (!IS_SILENT) {
-        std::cout << CYAN << "Arquivos: " << files.size() << RESET << "\n";
+        std::cout << B << CYN << "Amalyzer " << R << DIM << files.size() << " arquivos\n" << R;
     }
-
-    if (args.listMode) {
-        log("INFO", "Listando...");
-    } else {
-        log("INFO", "Analisando...");
-    }
+    
+    log("INF", args.listMode ? "Modo lista..." : "Analisando...");
 
     // Processamento
     std::vector<AudioAnalysis> results;
-    int processedCount = 0;
-    int totalFiles = files.size();
+    int proc = 0, tot = files.size();
 
-    for (const auto& fpath : files) {
+    for (const auto& f : files) {
         AudioAnalysis res;
-        res.path = fpath;
-        res.filename = fs::path(fpath).filename().string();
+        res.path = f;
+        res.filename = fs::path(f).filename().string();
         
-        // Tamanho do arquivo
-        try {
-            res.fileSizeMB = (double)fs::file_size(fpath) / (1024.0 * 1024.0);
-        } catch(...) { res.fileSizeMB = 0.0; }
+        // Tamanho
+        try { res.fileSizeMB = (double)fs::file_size(f) / (1024.0 * 1024.0); } catch(...) { res.fileSizeMB = 0.0; }
 
-        // Metadata
+        // Tags básicas
         try {
-            TagLib::FileRef f(fpath.c_str());
-            if (!f.isNull() && f.tag()) {
-                res.title = f.tag()->title().toCString(true);
-                res.artist = f.tag()->artist().toCString(true);
-                res.album = f.tag()->album().toCString(true);
-                res.genre = f.tag()->genre().toCString(true);
-                if (f.audioProperties() && args.listMode) {
-                    res.durationSec = f.audioProperties()->lengthInSeconds();
+            TagLib::FileRef file(f.c_str());
+            if (!file.isNull() && file.tag()) {
+                res.title = file.tag()->title().toCString(true);
+                res.artist = file.tag()->artist().toCString(true);
+                res.album = file.tag()->album().toCString(true);
+                res.genre = file.tag()->genre().toCString(true);
+                if (file.audioProperties()) {
+                    res.bitrate = file.audioProperties()->bitrate();
+                    res.sampleRate = file.audioProperties()->sampleRate();
+                    res.channels = file.audioProperties()->channels();
+                    if (args.listMode) res.durationSec = file.audioProperties()->lengthInSeconds();
                 }
             }
         } catch(...) {}
 
+        // Análise se necessário
         if (!args.listMode) {
-            // Análise
-            AudioAnalysis analysis = amalyzer.analyze(fpath);
+            AudioAnalysis analysis = amalyzer.analyze(f);
             if (analysis.success) {
                 res.bpm = analysis.bpm;
                 res.energy = analysis.energy;
@@ -612,47 +528,40 @@ int main(int argc, char* argv[]) {
             res.success = true;
         }
 
+        // Filtros
         if (res.success) {
-            // Aplicar filtros
             bool keep = true;
             if (args.minBpm > 0 && res.bpm < args.minBpm) keep = false;
             if (args.maxBpm > 0 && res.bpm > args.maxBpm) keep = false;
             if (args.minSizeMB > 0 && res.fileSizeMB < args.minSizeMB) keep = false;
             if (args.maxSizeMB > 0 && res.fileSizeMB > args.maxSizeMB) keep = false;
-            if (!args.targetKey.empty() && toLower(res.keyCamelot) != toLower(args.targetKey)) keep = false;
-
+            if (!args.targetKey.empty() && lower(res.keyCamelot) != lower(args.targetKey)) keep = false;
             if (keep) results.push_back(res);
         } else if (!args.listMode) {
-            log("ERROR", "Falha: " + res.errorMessage, res.filename);
+            log("ERR", "Falha análise: " + trunc(res.errorMessage, 20), res.filename);
         }
 
-        processedCount++;
-        if (!args.quiet) {
-            drawProgressBar(processedCount, totalFiles, res.filename);
-        }
+        proc++;
+        if (!args.quiet) progress(proc, tot, res.filename);
     }
 
     if (!args.quiet) std::cout << "\n";
 
     if (results.empty()) {
-        log("INFO", "Nenhum resultado após filtros.");
+        log("INF", "Sem arquivos após filtro");
         return 0;
     }
 
-    // Escrever tags
+    // Tags
     if (!args.tagsToWrite.empty() && !args.listMode) {
-        log("INFO", "Escrevendo tags...");
-        for (const auto& res : results) {
-            writeTags(res, args.tagsToWrite, args.putForce);
-        }
+        log("INF", "Escrevendo tags...");
+        for (const auto& r : results) writeTags(r, args.tagsToWrite, args.putForce);
     }
 
-    // Gerar metadata
+    // Meta
     if (args.meta && !args.listMode) {
-        log("INFO", "Gerando metadata...");
-        for (const auto& res : results) {
-            saveMetadataFile(res);
-        }
+        log("INF", "Gerando JSONs...");
+        for (const auto& r : results) saveMeta(r);
     }
 
     // Ordenar
@@ -672,14 +581,16 @@ int main(int argc, char* argv[]) {
 
     // Saída
     if (args.csv) {
-        std::string out = args.outputFile.empty() ? "resultado.csv" : args.outputFile;
+        std::string out = args.outputFile.empty() ? "analysis.csv" : args.outputFile;
         saveCsv(results, out);
     } else {
-        printCompactTable(results, args);
+        if (!IS_SILENT && !args.quiet) {
+            std::cout << "\n" << B << YEL << (args.listMode ? "Lista:" : "Análise:") << R << "\n";
+        }
+        printCompact(results, args);
         
-        // Resumo minimalista
-        if (!IS_SILENT) {
-            std::cout << GREEN << "✓ Pronto: " << results.size() << " arquivos" << RESET << "\n";
+        if (!IS_SILENT && !args.quiet) {
+            std::cout << DIM << "\nTotal: " << results.size() << " arquivos" << R << "\n";
         }
     }
 
