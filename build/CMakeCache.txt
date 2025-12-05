@@ -221,6 +221,9 @@ PKG_CONFIG_ARGN:STRING=
 //pkg-config executable
 PKG_CONFIG_EXECUTABLE:FILEPATH=/usr/bin/pkg-config
 
+//Path to a library.
+TAGLIB_STATIC_LIB:FILEPATH=TAGLIB_STATIC_LIB-NOTFOUND
+
 //Value Computed by CMake
 amalyzer_BINARY_DIR:STATIC=/home/vanbanou/Documentos/Cpp/amalyzer/build
 
