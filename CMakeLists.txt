@@ -15,6 +15,9 @@ endif()
 include_directories(${TAGLIB_STATIC_ROOT}/include)
 link_directories(${TAGLIB_STATIC_ROOT}/lib)
 
+include_directories(${TAGLIB_INCLUDE_DIRS})
+
+
 # Architecture detection
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
     set(SUPERPOWERED_LIB "${SUPERPOWERED_PATH}/libSuperpoweredLinuxARM64.a")
