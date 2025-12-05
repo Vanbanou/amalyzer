@@ -41,13 +41,17 @@ endif()
 # Exec
 add_executable(amalyzer main.cpp)
 
-# Link
+# Link libraries
 target_link_libraries(amalyzer PRIVATE
     ${SUPERPOWERED_LIB}
     ${TAGLIB_LIBS}
-    pthread
     dl
 )
+
+# pthread is integrated in Bionic (Android libc), only link separately on Linux
+if(NOT ANDROID)
+    target_link_libraries(amalyzer PRIVATE pthread)
+endif()
 
 # Add static libgcc/libstdc++ for non-Android builds
 if(NOT ANDROID)
