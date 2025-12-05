@@ -1,1 +1,1 @@
-/usr/bin/c++ CMakeFiles/amalyzer.dir/main.cpp.o -o amalyzer  /home/vanbanou/Documentos/Cpp/amalyzer/superpowered/libSuperpoweredLinuxX86_64.a -ltag -lz -lpthread -ldl -static-libgcc -static-libstdc++ /usr/lib/x86_64-linux-gnu/libz.a 
+/usr/bin/c++ CMakeFiles/amalyzer.dir/main.cpp.o -o amalyzer  /home/vanbanou/Documentos/Cpp/amalyzer/superpowered/libSuperpoweredLinuxX86_64.a -ltag -lz -ldl -lpthread -static-libgcc -static-libstdc++ /usr/lib/x86_64-linux-gnu/libz.a 
