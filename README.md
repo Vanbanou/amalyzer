@@ -19,16 +19,22 @@ Analisador de áudio robusto em C++ para extrair BPM, energia, tonalidade (key) 
 
 Baixe os binários para sua plataforma na [página de releases](../../releases):
 
-- **Linux x64**: `amalyzer-linux-x64.tar.gz`
-- **Linux ARM64**: `amalyzer-linux-arm64.tar.gz`
+- **Linux x64**: `amalyzer-linux-x64.zip`
+- **Linux ARM64**: `amalyzer-linux-arm64.zip`
+- **Android ARM64 (Termux)**: `amalyzer-android-arm64.zip`
 
-> **Nota**: Os binários são compilados com link estático da TagLib quando possível, minimizando dependências de runtime.
+> **Nota**: Os binários são compilados com link estático de todas as bibliotecas, criando executáveis standalone.
 
 ```bash
-# Extrair e instalar
-tar -xzf amalyzer-linux-x64.tar.gz
+# Linux
+unzip amalyzer-linux-x64.zip
 cd amalyzer-linux-x64
 sudo cp amalyzer /usr/local/bin/
+
+# Android/Termux
+unzip amalyzer-android-arm64.zip
+cd amalyzer-android-arm64
+cp amalyzer $PREFIX/bin/
 ```
 
 ### Dependências de Runtime

@@ -222,7 +222,7 @@ PKG_CONFIG_ARGN:STRING=
 PKG_CONFIG_EXECUTABLE:FILEPATH=/usr/bin/pkg-config
 
 //Path to a library.
-TAGLIB_STATIC_LIB:FILEPATH=TAGLIB_STATIC_LIB-NOTFOUND
+ZLIB_STATIC_LIB:FILEPATH=/usr/lib/x86_64-linux-gnu/libz.a
 
 //Value Computed by CMake
 amalyzer_BINARY_DIR:STATIC=/home/vanbanou/Documentos/Cpp/amalyzer/build
@@ -432,7 +432,7 @@ TAGLIB_taglib_PREFIX:INTERNAL=
 TAGLIB_taglib_VERSION:INTERNAL=
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
-__pkg_config_arguments_TAGLIB:INTERNAL=REQUIRED;taglib
+__pkg_config_arguments_TAGLIB:INTERNAL=taglib
 __pkg_config_checked_TAGLIB:INTERNAL=1
 //ADVANCED property for variable: pkgcfg_lib_TAGLIB_tag
 pkgcfg_lib_TAGLIB_tag-ADVANCED:INTERNAL=1

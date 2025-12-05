@@ -7,13 +7,27 @@ set(CMAKE_CXX_STANDARD 17)
 set(SUPERPOWERED_PATH "${CMAKE_SOURCE_DIR}/superpowered")
 include_directories(${SUPERPOWERED_PATH})
 
-# TagLib estático — obrigatório via workflow
+# TagLib estático
 if(NOT DEFINED TAGLIB_STATIC_ROOT)
-    message(FATAL_ERROR "TAGLIB_STATIC_ROOT must be provided")
+    # Fallback to pkg-config for local builds
+    find_package(PkgConfig)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(TAGLIB taglib)
+        if(TAGLIB_FOUND)
+            include_directories(${TAGLIB_INCLUDE_DIRS})
+            link_directories(${TAGLIB_LIBRARY_DIRS})
+            set(TAGLIB_LIBS ${TAGLIB_LIBRARIES})
+        else()
+            message(FATAL_ERROR "TagLib not found. Please install libtag1-dev or set TAGLIB_STATIC_ROOT")
+        endif()
+    else()
+        message(FATAL_ERROR "TAGLIB_STATIC_ROOT must be provided or pkg-config must be available")
+    endif()
+else()
+    include_directories(${TAGLIB_STATIC_ROOT}/include)
+    link_directories(${TAGLIB_STATIC_ROOT}/lib)
+    set(TAGLIB_LIBS ${TAGLIB_STATIC_ROOT}/lib/libtag.a)
 endif()
-
-include_directories(${TAGLIB_STATIC_ROOT}/include)
-link_directories(${TAGLIB_STATIC_ROOT}/lib)
 
 # Detect architecture
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
@@ -30,13 +44,26 @@ add_executable(amalyzer main.cpp)
 # Link
 target_link_libraries(amalyzer PRIVATE
     ${SUPERPOWERED_LIB}
-    ${TAGLIB_STATIC_ROOT}/lib/libtag.a
+    ${TAGLIB_LIBS}
     pthread
     dl
-    -static-libgcc
-    -static-libstdc++
 )
 
-# Find and link static zlib
-find_library(ZLIB_STATIC NAMES libz.a PATHS /usr/lib /usr/lib64 /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu REQUIRED)
-target_link_libraries(amalyzer PRIVATE ${ZLIB_STATIC})
+# Add static libgcc/libstdc++ for non-Android builds
+if(NOT ANDROID)
+    target_link_libraries(amalyzer PRIVATE -static-libgcc -static-libstdc++)
+endif()
+
+# Find and link zlib
+if(DEFINED ZLIB_STATIC)
+    # Use provided static zlib (for Android NDK builds)
+    target_link_libraries(amalyzer PRIVATE ${ZLIB_STATIC})
+else()
+    # Find static zlib for Linux builds
+    find_library(ZLIB_STATIC_LIB NAMES libz.a PATHS /usr/lib /usr/lib64 /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu)
+    if(ZLIB_STATIC_LIB)
+        target_link_libraries(amalyzer PRIVATE ${ZLIB_STATIC_LIB})
+    else()
+        target_link_libraries(amalyzer PRIVATE z)
+    endif()
+endif()
