@@ -22,11 +22,25 @@ Baixe os binários para sua plataforma na [página de releases](../../releases):
 - **Linux x64**: `amalyzer-linux-x64.tar.gz`
 - **Linux ARM64**: `amalyzer-linux-arm64.tar.gz`
 
+> **Nota**: Os binários são compilados com link estático da TagLib quando possível, minimizando dependências de runtime.
+
 ```bash
 # Extrair e instalar
 tar -xzf amalyzer-linux-x64.tar.gz
 cd amalyzer-linux-x64
 sudo cp amalyzer /usr/local/bin/
+```
+
+### Dependências de Runtime
+
+Se o binário não executar, instale as dependências básicas:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install libtag1v5
+
+# Arch Linux
+sudo pacman -S taglib
 ```
 
 ### Compilar do Código Fonte

@@ -30,7 +30,14 @@ endif()
 # Add the executable
 add_executable(amalyzer main.cpp)
 
-# Link libraries
-# Superpowered often requires system libraries like pthread, dl, asound (ALSA) on Linux.
-# Adding standard ones just in case.
-target_link_libraries(amalyzer PRIVATE ${SUPERPOWERED_LIB} pthread dl ${TAGLIB_LIBRARIES})
+# Try to link statically with TagLib if available
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so)
+find_library(TAGLIB_STATIC_LIB tag PATHS ${TAGLIB_LIBRARY_DIRS} NO_DEFAULT_PATH)
+
+if(TAGLIB_STATIC_LIB)
+    message(STATUS "Using static TagLib: ${TAGLIB_STATIC_LIB}")
+    target_link_libraries(amalyzer PRIVATE ${SUPERPOWERED_LIB} pthread dl ${TAGLIB_STATIC_LIB} z)
+else()
+    message(STATUS "Using dynamic TagLib")
+    target_link_libraries(amalyzer PRIVATE ${SUPERPOWERED_LIB} pthread dl ${TAGLIB_LIBRARIES})
+endif()
