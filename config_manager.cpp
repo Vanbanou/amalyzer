@@ -3,10 +3,29 @@
 #include <sstream>
 #include <iostream>
 #include <filesystem>
+#include <unistd.h>
+#include <limits.h>
 
 namespace fs = std::filesystem;
 
-ConfigManager::ConfigManager(const std::string& filename) : filename(filename) {
+ConfigManager::ConfigManager(const std::string& filename) {
+    // Determine executable directory
+    char result[PATH_MAX];
+    ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+    std::string execDir;
+    if (count != -1) {
+        execDir = fs::path(std::string(result, count)).parent_path().string();
+    } else {
+        execDir = "."; // Fallback to current directory
+    }
+    
+    // If filename is just a name (no path separators), prepend exec dir
+    if (filename.find('/') == std::string::npos && filename.find('\\') == std::string::npos) {
+        this->filename = execDir + "/" + filename;
+    } else {
+        this->filename = filename;
+    }
+
     load();
 }
 
