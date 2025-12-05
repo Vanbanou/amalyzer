@@ -33,5 +33,10 @@ target_link_libraries(amalyzer PRIVATE
     ${TAGLIB_STATIC_ROOT}/lib/libtag.a
     pthread
     dl
-    z
+    -static-libgcc
+    -static-libstdc++
 )
+
+# Find and link static zlib
+find_library(ZLIB_STATIC NAMES libz.a PATHS /usr/lib /usr/lib64 /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu REQUIRED)
+target_link_libraries(amalyzer PRIVATE ${ZLIB_STATIC})
