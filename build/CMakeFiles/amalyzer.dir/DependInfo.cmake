@@ -8,6 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "/home/vanbanou/Documentos/Cpp/amalyzer/config_manager.cpp" "CMakeFiles/amalyzer.dir/config_manager.cpp.o" "gcc" "CMakeFiles/amalyzer.dir/config_manager.cpp.o.d"
   "/home/vanbanou/Documentos/Cpp/amalyzer/main.cpp" "CMakeFiles/amalyzer.dir/main.cpp.o" "gcc" "CMakeFiles/amalyzer.dir/main.cpp.o.d"
   )
 

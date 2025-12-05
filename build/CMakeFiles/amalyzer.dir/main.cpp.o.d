@@ -230,6 +230,7 @@ CMakeFiles/amalyzer.dir/main.cpp.o: \
  /home/vanbanou/Documentos/Cpp/amalyzer/superpowered/SuperpoweredHTTP.h \
  /home/vanbanou/Documentos/Cpp/amalyzer/superpowered/SuperpoweredAnalyzer.h \
  /home/vanbanou/Documentos/Cpp/amalyzer/superpowered/SuperpoweredSimple.h \
+ /home/vanbanou/Documentos/Cpp/amalyzer/config_manager.h \
  /usr/include/taglib/tag.h /usr/include/taglib/taglib_export.h \
  /usr/include/taglib/tstring.h /usr/include/taglib/taglib.h \
  /usr/include/taglib/taglib_config.h /usr/include/taglib/tbytevector.h \

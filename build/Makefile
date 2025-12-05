@@ -129,6 +129,30 @@ amalyzer/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/build
 .PHONY : amalyzer/fast
 
+config_manager.o: config_manager.cpp.o
+.PHONY : config_manager.o
+
+# target to build an object file
+config_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/config_manager.cpp.o
+.PHONY : config_manager.cpp.o
+
+config_manager.i: config_manager.cpp.i
+.PHONY : config_manager.i
+
+# target to preprocess a source file
+config_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/config_manager.cpp.i
+.PHONY : config_manager.cpp.i
+
+config_manager.s: config_manager.cpp.s
+.PHONY : config_manager.s
+
+# target to generate assembly for a file
+config_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/config_manager.cpp.s
+.PHONY : config_manager.cpp.s
+
 main.o: main.cpp.o
 .PHONY : main.o
 
@@ -162,6 +186,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... amalyzer"
+	@echo "... config_manager.o"
+	@echo "... config_manager.i"
+	@echo "... config_manager.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
