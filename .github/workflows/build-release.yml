@@ -28,6 +28,7 @@ jobs:
     
     - name: Build for Linux x64
       run: |
+        rm -rf build
         mkdir -p build
         cd build
         cmake ..
@@ -71,6 +72,7 @@ jobs:
           bash -c "
             apt-get update && \
             apt-get install -y build-essential cmake libtag1-dev git && \
+            rm -rf build && \
             mkdir -p build && \
             cd build && \
             cmake .. && \

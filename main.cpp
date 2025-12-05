@@ -87,6 +87,15 @@ std::string truncate(const std::string& str, size_t width) {
     return str;
 }
 
+std::string repeatString(const std::string& str, int count) {
+    std::string result;
+    result.reserve(str.length() * count);
+    for (int i = 0; i < count; ++i) {
+        result += str;
+    }
+    return result;
+}
+
 std::string toLower(const std::string& str) {
     std::string lower = str;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
@@ -380,23 +389,23 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
         for(auto& c : cols) totalW += c.w;
         totalW += (cols.size() * 3) - 1;
 
-        // Top border (double line)
-        std::cout << CYAN << "╔" << std::string(totalW, '═') << "╗" << RESET << "\n";
+        // Top border
+        std::cout << "╔" << repeatString("═", totalW) << "╗" << "\n";
         
         // Header
-        std::cout << CYAN << "║" << RESET;
+        std::cout << "║";
         for(size_t i=0; i<cols.size(); ++i) {
-            std::cout << BOLD << YELLOW << " " << std::left << std::setw(cols[i].w) << cols[i].name << " " << RESET;
-            if(i < cols.size()-1) std::cout << CYAN << "│" << RESET;
+            std::cout << " " << BOLD << std::left << std::setw(cols[i].w) << cols[i].name << RESET << " ";
+            if(i < cols.size()-1) std::cout << "│";
         }
-        std::cout << CYAN << "║" << RESET << "\n";
+        std::cout << "║" << "\n";
         
         // Header separator
-        std::cout << CYAN << "╠" << std::string(totalW, '═') << "╣" << RESET << "\n";
+        std::cout << "╠" << repeatString("═", totalW) << "╣" << "\n";
 
         // Data rows
         for(const auto& res : results) {
-            std::cout << CYAN << "║" << RESET;
+            std::cout << "║";
             for(size_t i=0; i<cols.size(); ++i) {
                 std::string val;
                 if(cols[i].id == "filename") val = res.filename;
@@ -408,13 +417,13 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
                     val = ss.str();
                 }
                 std::cout << " " << std::left << std::setw(cols[i].w) << truncate(val, cols[i].w) << " ";
-                if(i < cols.size()-1) std::cout << CYAN << "│" << RESET;
+                if(i < cols.size()-1) std::cout << "│";
             }
-            std::cout << CYAN << "║" << RESET << "\n";
+            std::cout << "║" << "\n";
         }
         
         // Bottom border
-        std::cout << CYAN << "╚" << std::string(totalW, '═') << "╝" << RESET << "\n";
+        std::cout << "╚" << repeatString("═", totalW) << "╝" << "\n";
 
     } else {
         // Analysis Mode Table
@@ -433,26 +442,25 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
         for(auto& c : cols) totalW += c.w;
         totalW += (cols.size() * 3) - 1;
 
-        // Top border (double line)
-        std::cout << CYAN << "╔" << std::string(totalW, '=') << "╗" << RESET << "\n";
+        // Top border
+        std::cout << "╔" << repeatString("═", totalW) << "╗" << "\n";
         
         // Header
-        std::cout << CYAN << "║" << RESET;
+        std::cout << "║";
         for(size_t i=0; i<cols.size(); ++i) {
-            std::cout << BOLD << YELLOW << " " << std::left << std::setw(cols[i].w) << cols[i].name << " " << RESET;
-            if(i < cols.size()-1) std::cout << CYAN << "│" << RESET;
+            std::cout << " " << BOLD << std::left << std::setw(cols[i].w) << cols[i].name << RESET << " ";
+            if(i < cols.size()-1) std::cout << "│";
         }
-        std::cout << CYAN << "║" << RESET << "\n";
+        std::cout << "║" << "\n";
         
         // Header separator
-        std::cout << CYAN << "╠" << std::string(totalW, '=') << "╣" << RESET << "\n";
+        std::cout << "╠" << repeatString("═", totalW) << "╣" << "\n";
 
         // Data rows
         for(const auto& res : results) {
-            std::cout << CYAN << "║" << RESET;
+            std::cout << "║";
             for(size_t i=0; i<cols.size(); ++i) {
                 std::string val;
-                std::string color = RESET;
                 
                 if(cols[i].id == "filename") val = res.filename;
                 else if(cols[i].id == "size") {
@@ -464,7 +472,6 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
                     else { 
                         std::stringstream ss; ss << std::fixed << std::setprecision(0) << res.bpm; 
                         val = ss.str();
-                        color = GREEN;
                     }
                 }
                 else if(cols[i].id == "energy") {
@@ -472,24 +479,22 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
                     else { 
                         std::stringstream ss; ss << std::fixed << std::setprecision(2) << res.energy; 
                         val = ss.str();
-                        color = MAGENTA;
                     }
                 }
                 else if(cols[i].id == "key") {
                     val = (res.keyCamelot.empty() || res.keyCamelot == "???") ? "-" : res.keyCamelot;
-                    if(val != "-") color = YELLOW;
                 }
                 else if(cols[i].id == "artist") val = res.artist.empty() ? "-" : res.artist;
                 else if(cols[i].id == "album") val = res.album.empty() ? "-" : res.album;
 
-                std::cout << " " << color << std::left << std::setw(cols[i].w) << truncate(val, cols[i].w) << RESET << " ";
-                if(i < cols.size()-1) std::cout << CYAN << "│" << RESET;
+                std::cout << " " << std::left << std::setw(cols[i].w) << truncate(val, cols[i].w) << " ";
+                if(i < cols.size()-1) std::cout << "│";
             }
-            std::cout << CYAN << "║" << RESET << "\n";
+            std::cout << "║" << "\n";
         }
         
         // Bottom border
-        std::cout << CYAN << "╚" << std::string(totalW, '=') << "╝" << RESET << "\n";
+        std::cout << "╚" << repeatString("═", totalW) << "╝" << "\n";
     }
 }
 
