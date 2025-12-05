@@ -102,10 +102,11 @@ std::string toLower(const std::string& str) {
     return lower;
 }
 
+// Otimizada para ser mais curta e usar menos espaço horizontal
 void drawProgressBar(int current, int total, const std::string& currentFile) {
     if (IS_SILENT) return;
     
-    int barWidth = 50;
+    int barWidth = 30; // Reduzido
     float progress = (float)current / total;
     int pos = barWidth * progress;
     
@@ -117,23 +118,22 @@ void drawProgressBar(int current, int total, const std::string& currentFile) {
     }
     std::cout << "]" << RESET;
     
-    // Percentage
+    // Percentage e Counter combinados para economizar espaço
     std::cout << " " << BOLD << GREEN << std::setw(3) << (int)(progress * 100.0) << "%" << RESET;
+    std::cout << " " << DIM << "(" << current << "/" << total << ")" << RESET;
     
-    // Counter
-    std::cout << " " << CYAN << "(" << current << "/" << total << ")" << RESET;
-    
-    // Current file
-    std::cout << " " << DIM << truncate(currentFile, 35) << RESET << "      " << std::flush;
+    // Current file truncado drasticamente
+    std::cout << " " << DIM << truncate(fs::path(currentFile).filename().string(), 20) << RESET << "      " << std::flush;
 }
 
+// Log mais direto
 void log(const std::string& level, const std::string& message, const std::string& detail = "") {
     if (IS_SILENT && level != "ERROR") return;
 
-    if (level == "INFO") std::cout << BLUE << "[ ℹ️ ] " << RESET;
-    else if (level == "WARNING") std::cout << YELLOW << "[ ⚠️ ] " << RESET;
-    else if (level == "ERROR") std::cerr << RED << "[ 🔥 ] " << RESET;
-    else if (level == "SUCCESS") std::cout << GREEN << "[ ✅ ] " << RESET;
+    if (level == "INFO") std::cout << BLUE << "[ℹ️] " << RESET;
+    else if (level == "WARNING") std::cout << YELLOW << "[⚠️] " << RESET;
+    else if (level == "ERROR") std::cerr << RED << "[🔥] " << RESET;
+    else if (level == "SUCCESS") std::cout << GREEN << "[✅] " << RESET;
 
     if (level == "ERROR") std::cerr << message;
     else std::cout << message;
@@ -363,7 +363,7 @@ void findFiles(const fs::path& root, std::vector<std::string>& files, const Prog
 }
 
 // ==============================
-// 📊 SAÍDA
+// 📊 SAÍDA (Otimizada para Termux)
 // ==============================
 
 void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
@@ -375,126 +375,56 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args) {
     }
 
     if (args.listMode) {
-        // List Mode Table
-        struct Col { std::string id; std::string name; int w; };
-        std::vector<Col> cols = {
-            {"filename", "ARQUIVO", 25},
-            {"title", "TÍTULO", 20},
-            {"artist", "ARTISTA", 15},
-            {"album", "ÁLBUM", 15},
-            {"size", "MB", 6}
-        };
-
-        int totalW = 0;
-        for(auto& c : cols) totalW += c.w;
-        totalW += (cols.size() * 3) - 1;
-
-        // Top border
-        std::cout << "╔" << repeatString("═", totalW) << "╗" << "\n";
-        
-        // Header
-        std::cout << "║";
-        for(size_t i=0; i<cols.size(); ++i) {
-            std::cout << " " << BOLD << std::left << std::setw(cols[i].w) << cols[i].name << RESET << " ";
-            if(i < cols.size()-1) std::cout << "│";
-        }
-        std::cout << "║" << "\n";
-        
-        // Header separator
-        std::cout << "╠" << repeatString("═", totalW) << "╣" << "\n";
-
-        // Data rows
+        // Modo de listagem compacta: [BPM KEY] Título/Nome do Arquivo (Artista) [TAM MB]
+        // Prioridade para Título e Artista, fallback para Nome do Arquivo
         for(const auto& res : results) {
-            std::cout << "║";
-            for(size_t i=0; i<cols.size(); ++i) {
-                std::string val;
-                if(cols[i].id == "filename") val = res.filename;
-                else if(cols[i].id == "title") val = res.title.empty() ? "-" : res.title;
-                else if(cols[i].id == "artist") val = res.artist.empty() ? "-" : res.artist;
-                else if(cols[i].id == "album") val = res.album.empty() ? "-" : res.album;
-                else if(cols[i].id == "size") {
-                    std::stringstream ss; ss << std::fixed << std::setprecision(1) << res.fileSizeMB;
-                    val = ss.str();
-                }
-                std::cout << " " << std::left << std::setw(cols[i].w) << truncate(val, cols[i].w) << " ";
-                if(i < cols.size()-1) std::cout << "│";
-            }
-            std::cout << "║" << "\n";
-        }
-        
-        // Bottom border
-        std::cout << "╚" << repeatString("═", totalW) << "╝" << "\n";
+            std::string mainInfo = res.title.empty() ? res.filename : res.title;
+            
+            // Info principal
+            std::cout << BOLD << truncate(mainInfo, 40) << RESET;
 
+            // Artista (entre parênteses e dim)
+            if (!res.artist.empty()) {
+                std::cout << DIM << " (" << truncate(res.artist, 15) << ")" << RESET;
+            }
+
+            // Tamanho (no final da linha)
+            std::cout << " [" << std::fixed << std::setprecision(1) << res.fileSizeMB << "MB]";
+            std::cout << "\n";
+        }
     } else {
-        // Analysis Mode Table
-        struct Col { std::string id; std::string name; int w; };
-        std::vector<Col> cols = {
-            {"filename", "ARQUIVO", 20},
-            {"size", "MB", 6},
-            {"bpm", "BPM", 6},
-            {"energy", "ENERG", 5},
-            {"key", "KEY", 4},
-            {"artist", "ARTISTA", 15},
-            {"album", "ÁLBUM", 15}
-        };
-
-        int totalW = 0;
-        for(auto& c : cols) totalW += c.w;
-        totalW += (cols.size() * 3) - 1;
-
-        // Top border
-        std::cout << "╔" << repeatString("═", totalW) << "╗" << "\n";
-        
-        // Header
-        std::cout << "║";
-        for(size_t i=0; i<cols.size(); ++i) {
-            std::cout << " " << BOLD << std::left << std::setw(cols[i].w) << cols[i].name << RESET << " ";
-            if(i < cols.size()-1) std::cout << "│";
-        }
-        std::cout << "║" << "\n";
-        
-        // Header separator
-        std::cout << "╠" << repeatString("═", totalW) << "╣" << "\n";
-
-        // Data rows
+        // Modo de análise compacta: [BPM | KEY | E:Energy] Nome_do_Arquivo [TAM MB]
+        // Uma linha por arquivo, maximizando a informação por linha.
         for(const auto& res : results) {
-            std::cout << "║";
-            for(size_t i=0; i<cols.size(); ++i) {
-                std::string val;
-                
-                if(cols[i].id == "filename") val = res.filename;
-                else if(cols[i].id == "size") {
-                    std::stringstream ss; ss << std::fixed << std::setprecision(1) << res.fileSizeMB;
-                    val = ss.str();
-                }
-                else if(cols[i].id == "bpm") {
-                    if(res.bpm < 0.1) val = "-";
-                    else { 
-                        std::stringstream ss; ss << std::fixed << std::setprecision(0) << res.bpm; 
-                        val = ss.str();
-                    }
-                }
-                else if(cols[i].id == "energy") {
-                    if(res.energy < 0.01) val = "-";
-                    else { 
-                        std::stringstream ss; ss << std::fixed << std::setprecision(2) << res.energy; 
-                        val = ss.str();
-                    }
-                }
-                else if(cols[i].id == "key") {
-                    val = (res.keyCamelot.empty() || res.keyCamelot == "???") ? "-" : res.keyCamelot;
-                }
-                else if(cols[i].id == "artist") val = res.artist.empty() ? "-" : res.artist;
-                else if(cols[i].id == "album") val = res.album.empty() ? "-" : res.album;
+            std::cout << BOLD << truncate(res.filename, 25) << RESET << " "; // Nome do arquivo
 
-                std::cout << " " << std::left << std::setw(cols[i].w) << truncate(val, cols[i].w) << " ";
-                if(i < cols.size()-1) std::cout << "│";
+            // Bloco de análise [BPM KEY E:ENERGY]
+            std::cout << CYAN << "[";
+            
+            // BPM
+            if(res.bpm >= 0.1) {
+                std::cout << GREEN << (int)std::round(res.bpm) << "bpm" << RESET;
+            } else {
+                std::cout << DIM << "---" << RESET;
             }
-            std::cout << "║" << "\n";
+            
+            // Key
+            if(!res.keyCamelot.empty() && res.keyCamelot != "???") {
+                std::cout << " | " << YELLOW << res.keyCamelot << RESET;
+            }
+
+            // Energy
+            if(res.energy >= 0.01) {
+                std::cout << " | E:" << std::fixed << std::setprecision(2) << res.energy;
+            }
+            
+            std::cout << CYAN << "]" << RESET;
+            
+            // Tamanho
+            std::cout << DIM << " [" << std::fixed << std::setprecision(1) << res.fileSizeMB << "MB]" << RESET;
+            
+            std::cout << "\n";
         }
-        
-        // Bottom border
-        std::cout << "╚" << repeatString("═", totalW) << "╝" << "\n";
     }
 }
 
@@ -538,34 +468,30 @@ void saveCsv(const std::vector<AudioAnalysis>& results, const std::string& filen
 }
 
 // ==============================
-// ❓ HELP
+// ❓ HELP (Otimizada para Termux)
 // ==============================
 
 void printHelp(const char* progName) {
-    std::cout << "🎵 Amalyzer - Analisador de Áudio Robusto 🎵\n\n"
-              << "Uso: " << progName << " [opções] <arquivos/pastas>\n\n"
-              << "Opções:\n"
-              << "  -r            Pesquisa recursiva em subdiretórios.\n"
-              << "  -q            Modo silencioso (sem logs de progresso ou tabela).\n"
-              << "  -l, --list    Modo de listagem rápida: lista apenas metadados sem análise pesada.\n"
-              << "  -csv          Gerar saída em formato CSV em vez de tabela.\n"
-              << "  -o <arquivo>  Salvar a saída (tabela ou CSV) em um arquivo.\n"
-              << "  -meta         Criar um arquivo .analisemetadata (JSON) para cada áudio.\n"
-              << "  -limit <N>    Analisar apenas os primeiros N arquivos encontrados.\n\n"
-              << "Opções de Filtro:\n"
-              << "  -bpm-min <N>  Filtrar por BPM mínimo.\n"
-              << "  -bpm-max <N>  Filtrar por BPM máximo.\n"
-              << "  -size-min <N> Filtrar por Tamanho mínimo (em MB).\n"
-              << "  -size-max <N> Filtrar por Tamanho máximo (em MB).\n"
-              << "  -key <K>      Filtrar por key exata (Camelot, ex: '8B').\n"
-              << "  -ext <list>   Extensões permitidas (ex: mp3,flac). Padrão: todas.\n\n"
-              << "Opções de Saída e Tags:\n"
-              << "  -sort <list>  Ordenar por campos (ex: 'bpm,energy').\n"
-              << "                Opções: name|bpm|size|key|energy|album|artist|title\n"
-              << "  -put <list>   ESCREVE tags no arquivo. Opções: bpm|energy|key.\n"
-              << "  -put-force    FORÇA a escrita das tags no campo Álbum, SUBSTITUINDO o original.\n\n"
-              << "Exemplo (Análise): " << progName << " -r -put bpm,energy,key -sort bpm ./musicas\n"
-              << "Exemplo (Listagem): " << progName << " -r -l -sort artist ./musicas\n";
+    std::cout << BOLD << YELLOW << "🎵 Amalyzer - CLI de Análise de Áudio\n\n" << RESET
+              << BOLD << "Uso: " << progName << " [OPÇÕES] <ARQ/PASTAS>\n\n" << RESET
+              << BOLD << "OPÇÕES GERAIS:\n" << RESET
+              << " -r         Busca recursiva.\n"
+              << " -q         Modo silencioso (sem progresso/tabela).\n"
+              << " -l, --list Modo de listagem (só metadados).\n"
+              << " -csv       Saída em formato CSV.\n"
+              << " -o <arq>   Salvar saída em arquivo.\n"
+              << " -meta      Cria .analisemetadata (JSON) por áudio.\n"
+              << " -limit <N> Limita a análise aos primeiros N arquivos.\n\n"
+              << BOLD << "FILTROS:\n" << RESET
+              << " -bpm-min/max <N> Filtra por BPM.\n"
+              << " -size-min/max <N> Filtra por Tamanho (MB).\n"
+              << " -key <K>   Filtra por key Camelot (ex: '8B').\n"
+              << " -ext <list> Extensões (ex: mp3,flac).\n\n"
+              << BOLD << "AÇÕES/SAÍDA:\n" << RESET
+              << " -sort <list> Ordena (ex: 'bpm,size'). Campos: name|bpm|size|key|energy|album|artist|title\n"
+              << " -put <list> Escreve tags no arquivo (bpm|energy|key).\n"
+              << " -put-force  FORÇA sobrescrita do campo Álbum.\n\n"
+              << DIM << "Exemplo: " << progName << " -r -put bpm,key -sort bpm ./musicas" << RESET << "\n";
 }
 
 // ==============================
@@ -662,13 +588,13 @@ int main(int argc, char* argv[]) {
     }
 
     if (!IS_SILENT) {
-        std::cout << "\n" << BOLD << CYAN << "╔════════════════════════════════════════════════════════════╗" << RESET << "\n";
-        std::cout << BOLD << CYAN << "║" << RESET << "  " << BOLD << YELLOW << "🎵  AMALYZER - Analisador de Áudio Avançado  🎵" << RESET << "  " << BOLD << CYAN << "║" << RESET << "\n";
-        std::cout << BOLD << CYAN << "╚════════════════════════════════════════════════════════════╝" << RESET << "\n\n";
+        // Banner mais compacto
+        std::cout << BOLD << CYAN << "─" << RESET << BOLD << YELLOW << " AMALYZER " << RESET << DIM << "(" << files.size() << " arquivos)" << RESET << "\n";
+        std::cout << std::string(35, '-') << "\n";
     }
     
     if (args.listMode) {
-        log("INFO", "Iniciando modo de listagem rápida (sem análise)...", "🎵");
+        log("INFO", "Listagem rápida (sem análise)...", "🎵");
     } else {
         log("INFO", "Iniciando análise...", "🚀");
     }
@@ -756,15 +682,7 @@ int main(int argc, char* argv[]) {
         for (const auto& res : results) {
              writeTags(res, args.tagsToWrite, args.putForce);
         }
-        if (!IS_SILENT) std::cout << std::string(75, '-') << "\n";
-    }
-
-    // Generate Meta
-    if (args.meta && !args.listMode) {
-        log("INFO", "Gerando arquivos .analisemetadata", "📝");
-        for (const auto& res : results) {
-            saveMetadataFile(res);
-        }
+        if (!IS_SILENT) std::cout << std::string(35, '-') << "\n"; // Linha menor
     }
 
     // Generate Meta
@@ -798,20 +716,17 @@ int main(int argc, char* argv[]) {
         if (!IS_SILENT) {
             std::cout << "\n";
             if (args.listMode) {
-                std::cout << BOLD << CYAN << "╔════════════════════════════════════════════════════════════╗" << RESET << "\n";
-                std::cout << BOLD << CYAN << "║" << RESET << "  " << BOLD << YELLOW << "🎵  Lista de Músicas (Metadados)" << RESET << "                  " << BOLD << CYAN << "║" << RESET << "\n";
-                std::cout << BOLD << CYAN << "╚════════════════════════════════════════════════════════════╝" << RESET << "\n\n";
+                std::cout << BOLD << MAGENTA << "--- LISTAGEM DE ARQUIVOS ---\n" << RESET;
             } else {
-                std::cout << BOLD << CYAN << "╔════════════════════════════════════════════════════════════╗" << RESET << "\n";
-                std::cout << BOLD << CYAN << "║" << RESET << "  " << BOLD << YELLOW << "📊  Resultados da Análise" << RESET << "                          " << BOLD << CYAN << "║" << RESET << "\n";
-                std::cout << BOLD << CYAN << "╚════════════════════════════════════════════════════════════╝" << RESET << "\n\n";
+                std::cout << BOLD << MAGENTA << "--- RESULTADOS DA ANÁLISE ---\n" << RESET;
             }
+            std::cout << std::string(35, '-') << "\n";
         }
         printTable(results, args);
         
         // Summary
         if (!IS_SILENT) {
-            std::cout << "\n" << BOLD << GREEN << "✓ " << RESET << "Total de arquivos analisados: " << BOLD << results.size() << RESET << "\n\n";
+            std::cout << "\n" << BOLD << GREEN << "✓ " << RESET << "Total: " << BOLD << results.size() << RESET << "\n";
         }
     }
 
