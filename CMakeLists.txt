@@ -31,11 +31,15 @@ endif()
 add_executable(amalyzer main.cpp)
 
 # Try to link statically with TagLib if available
-set(CMAKE_FIND_LIBRARY_SUFFIXES .a .so)
+# Force search for .a files first
+set(CMAKE_FIND_LIBRARY_SUFFIXES_BACKUP ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
 find_library(TAGLIB_STATIC_LIB tag PATHS ${TAGLIB_LIBRARY_DIRS} NO_DEFAULT_PATH)
+set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BACKUP})
 
 if(TAGLIB_STATIC_LIB)
     message(STATUS "Using static TagLib: ${TAGLIB_STATIC_LIB}")
+    # When linking statically, we need to include TagLib's dependencies
     target_link_libraries(amalyzer PRIVATE ${SUPERPOWERED_LIB} pthread dl ${TAGLIB_STATIC_LIB} z)
 else()
     message(STATUS "Using dynamic TagLib")
