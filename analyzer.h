@@ -30,10 +30,21 @@ struct AudioAnalysis {
     double durationSec = 0.0;
     double bpm = 0.0;
     double averageDb = 0.0;
-    double energy = 0.0; // Added energy
+    double energy = 0.0;
     int keyIndex = -1;
     std::string keyCamelot = "";
     std::string keyOpenKey = "";
+    
+    // Metadata
+    std::string title = "";
+    std::string artist = "";
+    std::string album = "";
+    std::string genre = "";
+    int bitrate = 0;
+    int sampleRate = 0;
+    int channels = 0;
+    double fileSizeMB = 0.0;
+
     bool success = false;
     std::string errorMessage;
 };
@@ -62,6 +73,7 @@ public:
         }
 
         result.durationSec = decoder->getDurationSeconds();
+        result.sampleRate = decoder->getSamplerate();
         unsigned int samplerate = decoder->getSamplerate();
         unsigned int framesPerChunk = decoder->getFramesPerChunk();
 
