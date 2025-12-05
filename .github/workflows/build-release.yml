@@ -29,21 +29,18 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_SHARED_LIBS=OFF \
               -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-              -DCMAKE_INSTALL_PREFIX=../taglib-static .
+              -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/taglib-static .
         make -j$(nproc)
         make install
 
-
     - name: Build amalyzer
-        run: |
-          rm -rf build
-          mkdir -p build
-          cd build
+      run: |
+        rm -rf build
+        mkdir build
+        cd build
 
-          export PKG_CONFIG_PATH="$GITHUB_WORKSPACE/build/taglib-install/lib/pkgconfig"
-
-          cmake ..
-          cmake --build . --config Release
+        cmake .. -DTAGLIB_STATIC_ROOT="$GITHUB_WORKSPACE/taglib-static"
+        cmake --build . --config Release
 
     - name: Package binary (ZIP)
       run: |
@@ -80,20 +77,17 @@ jobs:
             apt-get update && \
             apt-get install -y build-essential cmake git pkg-config zlib1g-dev && \
 
-            # Build static TagLib
             git clone --depth=1 --recursive https://github.com/taglib/taglib.git && \
             cd taglib && \
             cmake -DCMAKE_BUILD_TYPE=Release \
                   -DBUILD_SHARED_LIBS=OFF \
                   -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-                  -DCMAKE_INSTALL_PREFIX=../taglib-static . && \
+                  -DCMAKE_INSTALL_PREFIX=/workspace/taglib-static . && \
             make -j\$(nproc) && make install && \
-            cd .. && \
 
-
-            # Build amalyzer
+            cd /workspace && \
             rm -rf build && mkdir build && cd build && \
-            cmake .. -DTAGLIB_STATIC_ROOT=../taglib-static && \
+            cmake .. -DTAGLIB_STATIC_ROOT=/workspace/taglib-static && \
             make -j\$(nproc)
           "
 
