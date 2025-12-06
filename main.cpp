@@ -514,8 +514,11 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
                 auto lst = id3->frameList(id);
                 if (lst.isEmpty())
                     return expected != "";
+
+                // CORREÇÃO: Remove o argumento de codificação de toString() e usa TagLib::String::UTF16
+                // na chamada toCString() para garantir que a codificação seja UTF16 para a comparação.
                 TagLib::String t = lst.front()->toString();
-                return t.toCString(true) == expected;
+                return t.toCString(TagLib::String::UTF16) == expected;
             };
 
             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end())
@@ -607,12 +610,15 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
 
         if (TagLib::ID3v2::Tag *id3 = dynamic_cast<TagLib::ID3v2::Tag *>(tag))
         {
+            // A Codificação UTF16 ajuda na compatibilidade de leitura em apps mais restritivos
+            const TagLib::String::Type TEXT_ENCODING = TagLib::String::UTF16;
+
             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end())
             {
                 TagLib::ByteVector id("TBPM");
                 id3->removeFrames(id);
-                auto *frame = new TagLib::ID3v2::TextIdentificationFrame(id);
-                frame->setText(TagLib::String(bpmStr, TagLib::String::UTF8));
+                auto *frame = new TagLib::ID3v2::TextIdentificationFrame(id, TEXT_ENCODING);
+                frame->setText(TagLib::String(bpmStr, TEXT_ENCODING));
                 id3->addFrame(frame);
             }
 
@@ -620,8 +626,8 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
             {
                 TagLib::ByteVector id("TKEY");
                 id3->removeFrames(id);
-                auto *frame = new TagLib::ID3v2::TextIdentificationFrame(id);
-                frame->setText(TagLib::String(keyStr, TagLib::String::UTF8));
+                auto *frame = new TagLib::ID3v2::TextIdentificationFrame(id, TEXT_ENCODING);
+                frame->setText(TagLib::String(keyStr, TEXT_ENCODING));
                 id3->addFrame(frame);
             }
 
@@ -638,9 +644,9 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
                 for (auto *frr : rem)
                     id3->removeFrame(frr);
 
-                auto *txxx = new TagLib::ID3v2::UserTextIdentificationFrame(TagLib::String::UTF8);
-                txxx->setDescription(TagLib::String("ENERGY", TagLib::String::UTF8));
-                txxx->setText(TagLib::String(energyStr, TagLib::String::UTF8));
+                auto *txxx = new TagLib::ID3v2::UserTextIdentificationFrame(TEXT_ENCODING);
+                txxx->setDescription(TagLib::String("ENERGY", TEXT_ENCODING));
+                txxx->setText(TagLib::String(energyStr, TEXT_ENCODING));
                 id3->addFrame(txxx);
             }
 
@@ -656,10 +662,10 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
             for (auto *fr : toRemove)
                 id3->removeFrame(fr);
 
-            auto *commFrame = new TagLib::ID3v2::CommentsFrame(TagLib::String::UTF8);
+            auto *commFrame = new TagLib::ID3v2::CommentsFrame(TEXT_ENCODING);
             commFrame->setLanguage("eng");
-            commFrame->setDescription(TagLib::String("AMALYZER", TagLib::String::UTF8));
-            commFrame->setText(TagLib::String(commentStr, TagLib::String::UTF8));
+            commFrame->setDescription(TagLib::String("AMALYZER", TEXT_ENCODING));
+            commFrame->setText(TagLib::String(commentStr, TEXT_ENCODING));
             id3->addFrame(commFrame);
         }
         else if (TagLib::Ogg::XiphComment *ogg = dynamic_cast<TagLib::Ogg::XiphComment *>(tag))
