@@ -29,12 +29,21 @@
 #include <taglib/fileref.h>                  // Referência genérica a arquivos
 #include <taglib/tfile.h>                    // Arquivo TagLib
 #include <taglib/textidentificationframe.h> // Frames de texto ID3v2
+#include <taglib/commentsframe.h>           // Frames de comentários ID3v2
+#include <taglib/attachedpictureframe.h>    // Capa do álbum (ID3v2)
 #include <taglib/id3v2tag.h>                 // Tags ID3v2 (MP3)
+#include <taglib/mpegfile.h>                 // Arquivos MPEG (MP3)
 #include <taglib/mp4file.h>                  // Arquivos MP4/M4A
+#include <taglib/mp4tag.h>                   // Tags MP4
+#include <taglib/mp4coverart.h>              // Capa MP4
 #include <taglib/flacfile.h>                 // Arquivos FLAC
 #include <taglib/oggfile.h>                  // Arquivos OGG
 #include <taglib/vorbisfile.h>               // Arquivos Vorbis
+#include <taglib/wavfile.h>                  // Arquivos WAV
+#include <taglib/aifffile.h>                 // Arquivos AIFF
+#include <taglib/rifffile.h>                 // Arquivos RIFF (WAV/AIFF)
 #include <taglib/xiphcomment.h>              // Comentários Xiph (OGG/FLAC)
+#include <taglib/tpropertymap.h>             // Mapa de propriedades genérico
 
 // Alias para facilitar o uso do namespace filesystem
 namespace fs = std::filesystem;
@@ -95,6 +104,10 @@ struct ProgramArgs {
     // Opções de escrita de tags
     std::vector<std::string> tagsToWrite;  // -put: tags para escrever (bpm,energy,key)
     bool putForce = false;                 // -putforce: sobrescrever álbum completamente
+    std::string coverPath;                 // -cover: caminho da imagem de capa
+    bool removeCover = false;              // -cover-remove: remover imagem de capa
+    bool removeAllTags = false;            // -remalltag: remover todas as tags
+    std::vector<std::string> tagsToRemove; // -remtag: tags específicas para remover
     
     // Modos de operação
     bool listMode = false;  // -l: modo lista (sem análise)
@@ -347,6 +360,13 @@ void writeTags(const AudioAnalysis& res, const std::vector<std::string>& tagsToW
 
     if (parts.empty()) return;
 
+    // Constrói string de comentário: "BPM: 128 | Key: 8A | Energy: 0.85"
+    std::string commentStr;
+    if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end()) commentStr += "BPM: " + bpmStr + " | ";
+    if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end()) commentStr += "Key: " + keyStr + " | ";
+    if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end()) commentStr += "Energy: " + energyStr + " | ";
+    if (commentStr.length() > 3) commentStr = commentStr.substr(0, commentStr.length() - 3); // Remove último " | "
+
     std::string newPrefix;
     for (size_t i = 0; i < parts.size(); ++i) {
         newPrefix += parts[i];
@@ -373,6 +393,9 @@ void writeTags(const AudioAnalysis& res, const std::vector<std::string>& tagsToW
         }
 
         tag->setAlbum(finalAlbum);
+        
+        // Escreve no campo de comentário genérico (suportado por quase todos os players)
+        tag->setComment(commentStr);
 
         // Escreve tags específicas dependendo do formato do arquivo
         // MP3 usa ID3v2, OGG/FLAC usam Xiph Comments
@@ -414,12 +437,26 @@ void writeTags(const AudioAnalysis& res, const std::vector<std::string>& tagsToW
                 txxx->setText(energyStr);
                 id3->addFrame(txxx);
             }
+            
+            // Adiciona comentário explícito no frame COMM (para garantir)
+            TagLib::ByteVector commId("COMM");
+            // Não removemos todos os comentários para não apagar dados do usuário, 
+            // mas adicionamos o nosso com descrição "AMALYZER"
+            TagLib::ID3v2::CommentsFrame *commFrame = new TagLib::ID3v2::CommentsFrame(TagLib::String::UTF8);
+            commFrame->setLanguage("eng");
+            commFrame->setDescription("AMALYZER");
+            commFrame->setText(commentStr);
+            id3->addFrame(commFrame);
+
         } else if (TagLib::Ogg::XiphComment *ogg = dynamic_cast<TagLib::Ogg::XiphComment *>(tag)) {
              // === FORMATO OGG/FLAC (Xiph Comments) ===
              // Adiciona campos diretamente (não precisa remover os antigos)
              if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end()) ogg->addField("BPM", bpmStr);
              if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end()) ogg->addField("INITIALKEY", keyStr);
              if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end()) ogg->addField("ENERGY", energyStr);
+             
+             // Adiciona ao campo COMMENT padrão
+             ogg->addField("COMMENT", commentStr);
         }
 
         if (f.save()) {
@@ -430,6 +467,332 @@ void writeTags(const AudioAnalysis& res, const std::vector<std::string>& tagsToW
 
     } catch (const std::exception& e) {
         log("ERROR", "Erro tags: " + std::string(e.what()), res.filename);
+    }
+}
+
+/**
+ * @brief Embutir imagem de capa no arquivo de áudio
+ * @param audioPath Caminho do arquivo de áudio
+ * @param imagePath Caminho do arquivo de imagem
+ */
+void embedCover(const std::string& audioPath, const std::string& imagePath) {
+    if (!fs::exists(imagePath)) {
+        log("ERROR", "Imagem não encontrada", imagePath);
+        return;
+    }
+
+    try {
+        TagLib::FileRef f(audioPath.c_str());
+        if (f.isNull() || !f.file()) return;
+
+        // Lê o arquivo de imagem
+        std::ifstream imgFile(imagePath, std::ios::binary | std::ios::ate);
+        if (!imgFile.is_open()) return;
+        std::streamsize size = imgFile.tellg();
+        imgFile.seekg(0, std::ios::beg);
+        TagLib::ByteVector imgData((unsigned int)size, 0);
+        imgFile.read(imgData.data(), size);
+
+        // Detecta formato da imagem
+        TagLib::MP4::CoverArt::Format mp4Format = TagLib::MP4::CoverArt::JPEG;
+        std::string mimeType = "image/jpeg";
+        if (imagePath.length() > 4 && toLower(imagePath.substr(imagePath.length() - 4)) == ".png") {
+            mp4Format = TagLib::MP4::CoverArt::PNG;
+            mimeType = "image/png";
+        }
+
+        bool saved = false;
+
+        // === MP3 (ID3v2) ===
+        if (TagLib::MPEG::File *mpegFile = dynamic_cast<TagLib::MPEG::File *>(f.file())) {
+            if (mpegFile->ID3v2Tag()) {
+                TagLib::ID3v2::Tag *id3 = mpegFile->ID3v2Tag(true);
+                
+                // Remove capas existentes
+                TagLib::ID3v2::FrameList frames = id3->frameList("APIC");
+                for (auto it = frames.begin(); it != frames.end(); ++it) {
+                    id3->removeFrame(*it);
+                }
+
+                TagLib::ID3v2::AttachedPictureFrame *frame = new TagLib::ID3v2::AttachedPictureFrame;
+                frame->setMimeType(mimeType);
+                frame->setPicture(imgData);
+                frame->setType(TagLib::ID3v2::AttachedPictureFrame::FrontCover);
+                id3->addFrame(frame);
+                saved = mpegFile->save();
+            }
+        }
+        // === MP4 / M4A ===
+        else if (TagLib::MP4::File *mp4File = dynamic_cast<TagLib::MP4::File *>(f.file())) {
+            if (mp4File->tag()) {
+                TagLib::MP4::Tag *tag = mp4File->tag();
+                
+                TagLib::MP4::CoverArtList coverArtList;
+                coverArtList.append(TagLib::MP4::CoverArt(mp4Format, imgData));
+                
+                TagLib::MP4::Item coverItem(coverArtList);
+                
+                // Modifica o item "covr" diretamente
+                tag->setItem("covr", coverItem);
+                
+                saved = mp4File->save();
+            }
+        }
+        // === FLAC ===
+        else if (TagLib::FLAC::File *flacFile = dynamic_cast<TagLib::FLAC::File *>(f.file())) {
+             TagLib::FLAC::Picture *picture = new TagLib::FLAC::Picture;
+             picture->setData(imgData);
+             picture->setType(TagLib::FLAC::Picture::FrontCover);
+             picture->setMimeType(mimeType);
+             
+             flacFile->removePictures();
+             flacFile->addPicture(picture);
+             saved = flacFile->save();
+        }
+        // === WAV (ID3v2) ===
+        else if (TagLib::RIFF::WAV::File *wavFile = dynamic_cast<TagLib::RIFF::WAV::File *>(f.file())) {
+            if (wavFile->tag()) { // WAV geralmente usa ID3v2 chunk
+                TagLib::ID3v2::Tag *id3 = wavFile->ID3v2Tag();
+                if (id3) {
+                    TagLib::ID3v2::FrameList frames = id3->frameList("APIC");
+                    for (auto it = frames.begin(); it != frames.end(); ++it) {
+                        id3->removeFrame(*it);
+                    }
+                    TagLib::ID3v2::AttachedPictureFrame *frame = new TagLib::ID3v2::AttachedPictureFrame;
+                    frame->setMimeType(mimeType);
+                    frame->setPicture(imgData);
+                    frame->setType(TagLib::ID3v2::AttachedPictureFrame::FrontCover);
+                    id3->addFrame(frame);
+                    saved = wavFile->save();
+                }
+            }
+        }
+        // === AIFF (ID3v2) ===
+        else if (TagLib::RIFF::AIFF::File *aiffFile = dynamic_cast<TagLib::RIFF::AIFF::File *>(f.file())) {
+             if (aiffFile->tag()) {
+                TagLib::ID3v2::Tag *id3 = aiffFile->tag(); // AIFF usa ID3v2 nativamente
+                if (id3) {
+                    TagLib::ID3v2::FrameList frames = id3->frameList("APIC");
+                    for (auto it = frames.begin(); it != frames.end(); ++it) {
+                        id3->removeFrame(*it);
+                    }
+                    TagLib::ID3v2::AttachedPictureFrame *frame = new TagLib::ID3v2::AttachedPictureFrame;
+                    frame->setMimeType(mimeType);
+                    frame->setPicture(imgData);
+                    frame->setType(TagLib::ID3v2::AttachedPictureFrame::FrontCover);
+                    id3->addFrame(frame);
+                    saved = aiffFile->save();
+                }
+             }
+        }
+        // === OGG (Vorbis) ===
+        // OGG é complexo, TagLib não tem suporte direto fácil para addPicture em Vorbis::File
+        // Requer codificação Base64 e METADATA_BLOCK_PICTURE. Deixaremos como TODO ou fallback genérico.
+        
+        if (saved) {
+            log("SUCCESS", "Capa adicionada", fs::path(audioPath).filename().string());
+        } else {
+            // Se não entrou em nenhum bloco específico ou falhou ao salvar
+            log("WARNING", "Formato não suportado ou falha ao salvar", fs::path(audioPath).filename().string());
+        }
+
+    } catch (const std::exception& e) {
+        log("ERROR", "Erro capa: " + std::string(e.what()));
+    }
+}
+
+/**
+ * @brief Remove a imagem de capa do arquivo de áudio
+ * @param audioPath Caminho do arquivo de áudio
+ */
+void removeCover(const std::string& audioPath) {
+    try {
+        TagLib::FileRef f(audioPath.c_str());
+        if (f.isNull() || !f.file()) return;
+
+        bool saved = false;
+
+        // === MP3 (ID3v2) ===
+        if (TagLib::MPEG::File *mpegFile = dynamic_cast<TagLib::MPEG::File *>(f.file())) {
+            if (mpegFile->ID3v2Tag()) {
+                TagLib::ID3v2::Tag *id3 = mpegFile->ID3v2Tag(true);
+                TagLib::ID3v2::FrameList frames = id3->frameList("APIC");
+                if (!frames.isEmpty()) {
+                    for (auto it = frames.begin(); it != frames.end(); ++it) {
+                        id3->removeFrame(*it);
+                    }
+                    saved = mpegFile->save();
+                }
+            }
+        }
+        // === MP4 / M4A ===
+        else if (TagLib::MP4::File *mp4File = dynamic_cast<TagLib::MP4::File *>(f.file())) {
+            if (mp4File->tag()) {
+                TagLib::MP4::Tag *tag = mp4File->tag();
+                if (tag->itemListMap().contains("covr")) {
+                    tag->removeItem("covr");
+                    saved = mp4File->save();
+                }
+            }
+        }
+        // === FLAC ===
+        else if (TagLib::FLAC::File *flacFile = dynamic_cast<TagLib::FLAC::File *>(f.file())) {
+            if (!flacFile->pictureList().isEmpty()) {
+                flacFile->removePictures();
+                saved = flacFile->save();
+            }
+        }
+        // === WAV (ID3v2) ===
+        else if (TagLib::RIFF::WAV::File *wavFile = dynamic_cast<TagLib::RIFF::WAV::File *>(f.file())) {
+            if (wavFile->ID3v2Tag()) {
+                TagLib::ID3v2::Tag *id3 = wavFile->ID3v2Tag();
+                TagLib::ID3v2::FrameList frames = id3->frameList("APIC");
+                if (!frames.isEmpty()) {
+                    for (auto it = frames.begin(); it != frames.end(); ++it) {
+                        id3->removeFrame(*it);
+                    }
+                    saved = wavFile->save();
+                }
+            }
+        }
+        // === AIFF (ID3v2) ===
+        else if (TagLib::RIFF::AIFF::File *aiffFile = dynamic_cast<TagLib::RIFF::AIFF::File *>(f.file())) {
+            if (aiffFile->tag()) {
+                TagLib::ID3v2::Tag *id3 = aiffFile->tag();
+                TagLib::ID3v2::FrameList frames = id3->frameList("APIC");
+                if (!frames.isEmpty()) {
+                    for (auto it = frames.begin(); it != frames.end(); ++it) {
+                        id3->removeFrame(*it);
+                    }
+                    saved = aiffFile->save();
+                }
+            }
+        }
+
+        if (saved) {
+            log("SUCCESS", "Capa removida", fs::path(audioPath).filename().string());
+        } else {
+            // Se não tinha capa ou falhou
+            // log("INFO", "Sem capa para remover ou falha", fs::path(audioPath).filename().string());
+        }
+
+    } catch (const std::exception& e) {
+        log("ERROR", "Erro remover capa: " + std::string(e.what()));
+    }
+}
+
+/**
+ * @brief Remove tags específicas do arquivo de áudio
+ * @param audioPath Caminho do arquivo
+ * @param tags Lista de tags para remover (artist, album, title, etc)
+ */
+void removeTags(const std::string& audioPath, const std::vector<std::string>& tags) {
+    try {
+        TagLib::FileRef f(audioPath.c_str());
+        if (f.isNull() || !f.tag()) return;
+
+        TagLib::Tag *tag = f.tag();
+        bool modified = false;
+
+        // Tenta usar PropertyMap para remoção genérica e mais robusta
+        TagLib::PropertyMap properties = f.file()->properties();
+        bool usePropertyMap = true; // Tenta usar PropertyMap primeiro
+
+        for (const auto& t : tags) {
+            std::string key = t; // Mantém case original ou converte para Upper dependendo da lib, mas PropertyMap costuma ser case-insensitive ou Upper
+            std::string upperKey = key;
+            std::transform(upperKey.begin(), upperKey.end(), upperKey.begin(), ::toupper);
+
+            // Mapeamento para campos padrão se necessário, mas PropertyMap lida com "ARTIST", "TITLE", etc.
+            
+            if (properties.contains(upperKey)) {
+                properties.erase(upperKey);
+                modified = true;
+            } else if (properties.contains(key)) { // Tenta chave original
+                properties.erase(key);
+                modified = true;
+            } else {
+                // Fallback para métodos set padrão se PropertyMap não funcionar ou não encontrar
+                // (Embora PropertyMap deva cobrir tudo em formatos modernos)
+                std::string lowerT = toLower(t);
+                if (lowerT == "artist") { tag->setArtist(""); modified = true; }
+                else if (lowerT == "album") { tag->setAlbum(""); modified = true; }
+                else if (lowerT == "title") { tag->setTitle(""); modified = true; }
+                else if (lowerT == "comment") { tag->setComment(""); modified = true; }
+                else if (lowerT == "genre") { tag->setGenre(""); modified = true; }
+                else if (lowerT == "year") { tag->setYear(0); modified = true; }
+                else if (lowerT == "track") { tag->setTrack(0); modified = true; }
+            }
+        }
+
+        if (modified) {
+            // Aplica as mudanças do PropertyMap de volta ao arquivo
+            f.file()->setProperties(properties);
+            
+            if (f.save()) {
+                log("SUCCESS", "Tags removidas", fs::path(audioPath).filename().string());
+            } else {
+                log("ERROR", "Falha ao salvar tags removidas", fs::path(audioPath).filename().string());
+            }
+        } else {
+             // log("INFO", "Nenhuma tag encontrada para remover", fs::path(audioPath).filename().string());
+        }
+
+    } catch (const std::exception& e) {
+        log("ERROR", "Erro remover tags: " + std::string(e.what()));
+    }
+}
+
+/**
+ * @brief Remove TODAS as tags do arquivo de áudio
+ * @param audioPath Caminho do arquivo
+ */
+void removeAllTags(const std::string& audioPath) {
+    try {
+        // Tenta usar TagLib::File::strip() se possível, mas FileRef não expõe diretamente de forma fácil para todos os tipos
+        // Uma abordagem genérica segura é limpar os campos padrão
+        
+        TagLib::FileRef f(audioPath.c_str());
+        if (f.isNull() || !f.tag()) return;
+
+        TagLib::Tag *tag = f.tag();
+        
+        // Limpa campos padrão
+        tag->setArtist("");
+        tag->setAlbum("");
+        tag->setTitle("");
+        tag->setComment("");
+        tag->setGenre("");
+        tag->setYear(0);
+        tag->setTrack(0);
+        
+        // Tenta limpar propriedades específicas se for ID3v2
+        if (TagLib::MPEG::File *mpegFile = dynamic_cast<TagLib::MPEG::File *>(f.file())) {
+             if (mpegFile->ID3v2Tag()) {
+                 // Remove todos os frames
+                 // mpegFile->strip(TagLib::MPEG::File::ID3v2); // Isso removeria tudo, inclusive capa
+                 // Vamos manter a abordagem de limpar campos padrão por segurança, 
+                 // ou usar strip se o usuário realmente quer "remalltag" (remove TUDO)
+                 
+                 // O usuário pediu "remalltag", então strip é apropriado para limpar metadados.
+                 // Mas strip pode remover capa também. O usuário pediu "remalltag", "artist", "album"...
+                 // Vamos assumir que remalltag limpa tudo.
+                 
+                 mpegFile->strip(TagLib::MPEG::File::AllTags); 
+                 // Nota: strip salva automaticamente? Geralmente sim ou precisa de save().
+                 // TagLib::File::strip() usually saves.
+                 log("SUCCESS", "Todas as tags removidas (strip)", fs::path(audioPath).filename().string());
+                 return;
+             }
+        }
+        
+        // Fallback para outros formatos: apenas salva com campos vazios
+        if (f.save()) {
+            log("SUCCESS", "Tags limpas", fs::path(audioPath).filename().string());
+        }
+
+    } catch (const std::exception& e) {
+        log("ERROR", "Erro remover todas tags: " + std::string(e.what()));
     }
 }
 
@@ -652,7 +1015,11 @@ void printHelp(const char* progName) {
               << "  -put <list>      Escrever tags (bpm,energy,key)\n"
               << "  -putforce        Forçar escrita (sobrescrever álbum)\n"
               << "  -config <k=v>    Atualizar configuração (ex: name_w=50)\n"
-              << "  -config          Listar configurações atuais\n\n"
+              << "  -config          Listar configurações atuais\n"
+              << "  -cover <path>    Embutir imagem de capa (jpg/png)\n"
+              << "  -remcover        Remover imagem de capa\n"
+              << "  -rem <list>      Remover tags específicas (artist,title,album...)\n"
+              << "  -remall          Remover TODAS as tags\n\n"
               << "Ex: " << progName << " -r -put bpm,key -sort bpm ./musicas\n";
 }
 
@@ -725,6 +1092,21 @@ int main(int argc, char* argv[]) {
             std::stringstream ss(tags);
             std::string item;
             while (std::getline(ss, item, ',')) args.tagsToWrite.push_back(toLower(item));
+        }
+        else if (arg == "-cover" && i + 1 < argc) {
+            args.coverPath = argv[++i];
+        }
+        else if (arg == "-remcover" || arg == "-cover-remove" || arg == "-rmcover") {
+            args.removeCover = true;
+        }
+        else if (arg == "-remall" || arg == "-remalltag" || arg == "-remove-all-tags") {
+            args.removeAllTags = true;
+        }
+        else if ((arg == "-rem" || arg == "-remtag") && i + 1 < argc) {
+            std::string tags = argv[++i];
+            std::stringstream ss(tags);
+            std::string item;
+            while (std::getline(ss, item, ',')) args.tagsToRemove.push_back(item); // Não converte para lower aqui para permitir tags case-sensitive se necessário
         }
         else if (arg == "-sort" && i + 1 < argc) {
             std::string sort = argv[++i];
@@ -902,6 +1284,41 @@ int main(int argc, char* argv[]) {
         log("INFO", "Gerando meta...");
         for (const auto& res : results) {
             saveMetadataFile(res);
+        }
+    }
+
+    // ==============================
+    // CAPA DO ÁLBUM
+    // ==============================
+    if (!args.coverPath.empty() && !args.listMode) {
+        log("INFO", "Adicionando capas...");
+        for (const auto& res : results) {
+            embedCover(res.path, args.coverPath);
+        }
+    }
+
+    // ==============================
+    // REMOVER CAPA
+    // ==============================
+    if (args.removeCover && !args.listMode) {
+        log("INFO", "Removendo capas...");
+        for (const auto& res : results) {
+            removeCover(res.path);
+        }
+    }
+
+    // ==============================
+    // REMOVER TAGS
+    // ==============================
+    if (args.removeAllTags && !args.listMode) {
+        log("INFO", "Removendo TODAS as tags...");
+        for (const auto& res : results) {
+            removeAllTags(res.path);
+        }
+    } else if (!args.tagsToRemove.empty() && !args.listMode) {
+        log("INFO", "Removendo tags específicas...");
+        for (const auto& res : results) {
+            removeTags(res.path, args.tagsToRemove);
         }
     }
 

@@ -243,15 +243,23 @@ CMakeFiles/amalyzer.dir/main.cpp.o: \
  /usr/include/taglib/audioproperties.h /usr/include/taglib/tfile.h \
  /usr/include/taglib/textidentificationframe.h /usr/include/taglib/tmap.h \
  /usr/include/taglib/tmap.tcc /usr/include/taglib/id3v2frame.h \
- /usr/include/taglib/id3v2tag.h /usr/include/taglib/id3v2.h \
- /usr/include/taglib/id3v2framefactory.h \
- /usr/include/taglib/id3v2header.h /usr/include/taglib/mp4file.h \
+ /usr/include/taglib/commentsframe.h \
+ /usr/include/taglib/attachedpictureframe.h \
+ /usr/include/taglib/id3v2header.h /usr/include/taglib/id3v2.h \
+ /usr/include/taglib/id3v2tag.h /usr/include/taglib/id3v2framefactory.h \
+ /usr/include/taglib/mpegfile.h /usr/include/taglib/mpegproperties.h \
+ /usr/include/taglib/mpegheader.h /usr/include/taglib/mp4file.h \
  /usr/include/taglib/mp4properties.h /usr/include/taglib/mp4tag.h \
  /usr/include/taglib/mp4atom.h /usr/include/taglib/mp4item.h \
+ /usr/include/taglib/mp4coverart.h /usr/include/taglib/mp4tag.h \
  /usr/include/taglib/mp4coverart.h /usr/include/taglib/flacfile.h \
  /usr/include/taglib/flacpicture.h \
  /usr/include/taglib/flacmetadatablock.h \
  /usr/include/taglib/flacproperties.h /usr/include/taglib/oggfile.h \
  /usr/include/taglib/vorbisfile.h /usr/include/taglib/oggfile.h \
  /usr/include/taglib/xiphcomment.h /usr/include/taglib/vorbisproperties.h \
- /usr/include/taglib/xiphcomment.h
+ /usr/include/taglib/wavfile.h /usr/include/taglib/rifffile.h \
+ /usr/include/taglib/id3v2tag.h /usr/include/taglib/infotag.h \
+ /usr/include/taglib/wavproperties.h /usr/include/taglib/aifffile.h \
+ /usr/include/taglib/aiffproperties.h /usr/include/taglib/rifffile.h \
+ /usr/include/taglib/xiphcomment.h /usr/include/taglib/tpropertymap.h
