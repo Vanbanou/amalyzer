@@ -79,6 +79,17 @@ void ConfigManager::createDefaultConfig() {
     configData["name_w"] = "25";
     configData["artist_w"] = "15";
     configData["album_w"] = "20";
+    configData["title_w"] = "20";
+    configData["genre_w"] = "10";
+    configData["year_w"] = "4";
+    configData["track_w"] = "2";
+    configData["bpm_w"] = "3";
+    configData["key_w"] = "3";
+    configData["energy_w"] = "3";
+    configData["size_w"] = "4";
+    configData["duration_w"] = "5";
+    configData["bitrate_w"] = "3";
+    configData["samplerate_w"] = "5";
     configData["ana_name_w"] = "20";
     
     save();

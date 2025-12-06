@@ -480,6 +480,7 @@ CMakeFiles/amalyzer.dir/main.cpp.o: /home/vanbanou/Documentos/Cpp/amalyzer/main.
   /usr/include/taglib/tlist.tcc \
   /usr/include/taglib/tmap.h \
   /usr/include/taglib/tmap.tcc \
+  /usr/include/taglib/tpropertymap.h \
   /usr/include/taglib/trefcounter.h \
   /usr/include/taglib/tstring.h \
   /usr/include/taglib/tstringlist.h \
@@ -781,6 +782,8 @@ CMakeFiles/amalyzer.dir/main.cpp.o: /home/vanbanou/Documentos/Cpp/amalyzer/main.
 /usr/include/c++/13/bits/stl_function.h:
 
 /usr/include/c++/13/bits/uses_allocator_args.h:
+
+/usr/include/taglib/tpropertymap.h:
 
 /usr/include/c++/13/bits/stl_uninitialized.h:
 

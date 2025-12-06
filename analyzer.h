@@ -40,6 +40,8 @@ struct AudioAnalysis {
     std::string artist = "";
     std::string album = "";
     std::string genre = "";
+    int year = 0;
+    int track = 0;
     int bitrate = 0;
     int sampleRate = 0;
     int channels = 0;

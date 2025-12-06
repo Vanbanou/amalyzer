@@ -482,6 +482,7 @@ CMakeFiles/amalyzer.dir/main.cpp.o
  /usr/include/taglib/tlist.tcc
  /usr/include/taglib/tmap.h
  /usr/include/taglib/tmap.tcc
+ /usr/include/taglib/tpropertymap.h
  /usr/include/taglib/trefcounter.h
  /usr/include/taglib/tstring.h
  /usr/include/taglib/tstringlist.h

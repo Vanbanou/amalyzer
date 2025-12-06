@@ -75,6 +75,19 @@ bool IS_SILENT = false;
 // - title, artist, album, genre: metadados
 // - fileSizeMB, durationSec: informações do arquivo
 // - success, errorMessage: status da análise
+// - title, artist, album, genre: metadados
+// - fileSizeMB, durationSec: informações do arquivo
+
+enum TagMode { SET, APPEND, PREPEND };
+
+struct TagOperation {
+    std::string key;
+    std::string value;
+    TagMode mode;
+};
+
+/**
+ * @struct ProgramArgs
 
 /**
  * @struct ProgramArgs
@@ -108,9 +121,13 @@ struct ProgramArgs {
     bool removeCover = false;              // -cover-remove: remover imagem de capa
     bool removeAllTags = false;            // -remalltag: remover todas as tags
     std::vector<std::string> tagsToRemove; // -remtag: tags específicas para remover
+    std::vector<TagOperation> tagOps;      // -settag, -addtag, -pretag: operações de edição de tags
+    
+    // Modos de operação
     
     // Modos de operação
     bool listMode = false;  // -l: modo lista (sem análise)
+    std::vector<std::string> listColumns; // Colunas para o modo lista
     bool meta = false;      // -meta: gerar arquivos .analisemetadata
     
     // Ordenação
@@ -796,6 +813,84 @@ void removeAllTags(const std::string& audioPath) {
     }
 }
 
+/**
+ * @brief Aplica operações de edição de tags (Set, Append, Prepend)
+ * @param audioPath Caminho do arquivo
+ * @param ops Lista de operações
+ */
+void applyTagOperations(const std::string& audioPath, const std::vector<TagOperation>& ops) {
+    try {
+        TagLib::FileRef f(audioPath.c_str());
+        if (f.isNull() || !f.file()) return;
+
+        TagLib::PropertyMap properties = f.file()->properties();
+        bool modified = false;
+
+        for (const auto& op : ops) {
+            std::string key = op.key;
+            std::string upperKey = key;
+            std::transform(upperKey.begin(), upperKey.end(), upperKey.begin(), ::toupper);
+            
+            // Normaliza a chave para busca (PropertyMap geralmente usa chaves em maiúsculo ou case-insensitive)
+            // Vamos tentar encontrar a chave existente
+            std::string targetKey = key;
+            if (properties.contains(upperKey)) targetKey = upperKey;
+            else if (properties.contains(key)) targetKey = key;
+            else targetKey = upperKey; // Se não existe, usa maiúsculo por padrão
+
+            if (op.mode == SET) {
+                properties.replace(targetKey, TagLib::String(op.value, TagLib::String::UTF8));
+                modified = true;
+            } else if (op.mode == APPEND) {
+                if (properties.contains(targetKey)) {
+                    TagLib::StringList values = properties[targetKey];
+                    if (!values.isEmpty()) {
+                        // Append ao último valor ou cria novo?
+                        // Geralmente append significa concatenar string.
+                        // Se fosse adicionar novo valor multivalorado, seria diferente.
+                        // O requisito diz "colocar no fim", assumo concatenação de string.
+                        TagLib::String current = values.back();
+                        values.back() = current + TagLib::String(op.value, TagLib::String::UTF8);
+                        properties.replace(targetKey, values);
+                    } else {
+                        properties.replace(targetKey, TagLib::String(op.value, TagLib::String::UTF8));
+                    }
+                } else {
+                    properties.replace(targetKey, TagLib::String(op.value, TagLib::String::UTF8));
+                }
+                modified = true;
+            } else if (op.mode == PREPEND) {
+                if (properties.contains(targetKey)) {
+                    TagLib::StringList values = properties[targetKey];
+                    if (!values.isEmpty()) {
+                        TagLib::String current = values.front(); // Prepend ao primeiro valor?
+                        // Vamos assumir que queremos modificar o valor principal (geralmente o primeiro ou único)
+                        values.front() = TagLib::String(op.value, TagLib::String::UTF8) + current;
+                        properties.replace(targetKey, values);
+                    } else {
+                        properties.replace(targetKey, TagLib::String(op.value, TagLib::String::UTF8));
+                    }
+                } else {
+                    properties.replace(targetKey, TagLib::String(op.value, TagLib::String::UTF8));
+                }
+                modified = true;
+            }
+        }
+
+        if (modified) {
+            f.file()->setProperties(properties);
+            if (f.save()) {
+                log("SUCCESS", "Tags atualizadas", fs::path(audioPath).filename().string());
+            } else {
+                log("ERROR", "Falha ao salvar tags atualizadas", fs::path(audioPath).filename().string());
+            }
+        }
+
+    } catch (const std::exception& e) {
+        log("ERROR", "Erro editar tags: " + std::string(e.what()));
+    }
+}
+
 // ==============================
 // 📂 ARQUIVOS E DIRETÓRIOS
 // ==============================
@@ -871,34 +966,84 @@ void printTable(std::vector<AudioAnalysis>& results, const ProgramArgs& args, Co
     }
 
     if (args.listMode) {
-        // Lista ultra compacta com larguras fixas
+        // Colunas padrão se não especificadas
+        std::vector<std::string> columns = args.listColumns;
+        if (columns.empty()) {
+            columns = {"name", "artist", "album", "size"};
+        }
+
         for(const auto& res : results) {
-            // Nome do arquivo (configurável)
-            int nameWidth = config.getInt("name_w", 25);
-            std::cout << padString(res.filename, nameWidth);
-            
-            // Artista (configurável)
-            int artistWidth = config.getInt("artist_w", 15);
-            std::cout << DIM << " - ";
-            if (!res.artist.empty()) {
-                std::cout << padString(res.artist, artistWidth);
-            } else {
-                std::cout << padString("", artistWidth);  // Espaço vazio se não houver artista
+            for (size_t i = 0; i < columns.size(); ++i) {
+                std::string col = toLower(columns[i]);
+                
+                if (col == "name" || col == "filename") {
+                    int w = config.getInt("name_w", 25);
+                    std::cout << padString(res.filename, w);
+                }
+                else if (col == "artist") {
+                    int w = config.getInt("artist_w", 15);
+                    std::cout << DIM << " - " << RESET; // Separator visual
+                    std::cout << padString(res.artist, w);
+                }
+                else if (col == "album") {
+                    int w = config.getInt("album_w", 20);
+                    std::cout << DIM << " [" << RESET;
+                    std::cout << padString(res.album, w);
+                    std::cout << DIM << "]" << RESET;
+                }
+                else if (col == "title") {
+                    int w = config.getInt("title_w", 20);
+                    std::cout << " " << padString(res.title, w);
+                }
+                else if (col == "genre") {
+                    int w = config.getInt("genre_w", 10);
+                    std::cout << " " << padString(res.genre, w);
+                }
+                else if (col == "year") {
+                    int w = config.getInt("year_w", 4);
+                    std::cout << " " << std::setw(w) << (res.year > 0 ? std::to_string(res.year) : std::string(w, ' '));
+                }
+                else if (col == "track") {
+                    int w = config.getInt("track_w", 2);
+                    std::cout << " " << std::setw(w) << (res.track > 0 ? std::to_string(res.track) : std::string(w, ' '));
+                }
+                else if (col == "bpm") {
+                    int w = config.getInt("bpm_w", 3);
+                    if(res.bpm >= 0.1) std::cout << " " << GREEN << std::setw(w) << (int)res.bpm << RESET;
+                    else std::cout << " " << std::string(w, ' ');
+                }
+                else if (col == "key") {
+                    int w = config.getInt("key_w", 3);
+                    if(!res.keyCamelot.empty() && res.keyCamelot != "???") std::cout << " " << YELLOW << std::setw(w) << std::left << truncate(res.keyCamelot, w) << RESET;
+                    else std::cout << " " << std::string(w, ' ');
+                }
+                else if (col == "energy") {
+                    int w = config.getInt("energy_w", 3);
+                    if(res.energy >= 0.01) std::cout << " " << std::fixed << std::setprecision(1) << std::setw(w) << res.energy;
+                    else std::cout << " " << std::string(w, ' ');
+                }
+                else if (col == "size") {
+                    int w = config.getInt("size_w", 4);
+                    std::cout << " " << CYAN << std::fixed << std::setprecision(1) << std::setw(w) << res.fileSizeMB << "MB" << RESET;
+                }
+                else if (col == "duration") {
+                    // Duration format is fixed (MM:SS), so width is essentially fixed or minimum 5
+                    int w = config.getInt("duration_w", 5); 
+                    int min = (int)res.durationSec / 60;
+                    int sec = (int)res.durationSec % 60;
+                    std::stringstream ss;
+                    ss << std::setw(2) << std::setfill('0') << min << ":" << std::setw(2) << sec;
+                    std::cout << " " << std::setw(w) << std::setfill(' ') << ss.str();
+                }
+                else if (col == "bitrate") {
+                    int w = config.getInt("bitrate_w", 3);
+                    std::cout << " " << std::setw(w) << res.bitrate << "k";
+                }
+                else if (col == "samplerate") {
+                    int w = config.getInt("samplerate_w", 5);
+                    std::cout << " " << std::setw(w) << res.sampleRate;
+                }
             }
-            std::cout << RESET;
-            
-            // Álbum (configurável)
-            int albumWidth = config.getInt("album_w", 20);
-            std::cout << DIM << " [";
-            if (!res.album.empty()) {
-                std::cout << padString(res.album, albumWidth);
-            } else {
-                std::cout << padString("", albumWidth);  // Espaço vazio se não houver álbum
-            }
-            std::cout << "]" << RESET;
-            
-            // Tamanho (sempre no mesmo lugar)
-            std::cout << " " << CYAN << std::fixed << std::setprecision(1) << std::setw(4) << res.fileSizeMB << "MB" << RESET;
             std::cout << "\n";
         }
     } else {
@@ -1000,7 +1145,7 @@ void printHelp(const char* progName) {
               << "Opções:\n"
               << "  -r          Recursivo\n"
               << "  -q          Silencioso\n"
-              << "  -l          Lista rápida\n"
+              << "  -l [cols]   Lista rápida (cols opcional: name,artist,size...)\n"
               << "  -csv        Saída CSV\n"
               << "  -o <file>   Salvar em arquivo\n"
               << "  -meta       Gerar .analisemetadata\n"
@@ -1019,7 +1164,13 @@ void printHelp(const char* progName) {
               << "  -cover <path>    Embutir imagem de capa (jpg/png)\n"
               << "  -remcover        Remover imagem de capa\n"
               << "  -rem <list>      Remover tags específicas (artist,title,album...)\n"
-              << "  -remall          Remover TODAS as tags\n\n"
+              << "  -remall          Remover TODAS as tags\n"
+              << "  -settag k=v      Definir tag (ex: artist=\"Nome\")\n"
+              << "  -addtag k=v      Adicionar ao fim da tag (ex: title=\" (Remix)\")\n"
+              << "  -pretag k=v      Adicionar ao início da tag (ex: title=\"[Intro] \")\n\n"
+              << "Tags Suportadas (comuns):\n"
+              << "  ARTIST, TITLE, ALBUM, COMMENT, GENRE, YEAR, TRACK, DISC\n"
+              << "  COMPOSER, ALBUMARTIST, ENCODEDBY, COPYRIGHT, URL, BPM, INITIALKEY\n\n"
               << "Ex: " << progName << " -r -put bpm,key -sort bpm ./musicas\n";
 }
 
@@ -1057,7 +1208,31 @@ int main(int argc, char* argv[]) {
         else if (arg == "-r") args.recursive = true;
         else if (arg == "-csv") args.csv = true;
         else if (arg == "-q") { args.quiet = true; IS_SILENT = true; }
-        else if (arg == "-l" || arg == "--list") args.listMode = true;
+        else if (arg == "-l" || arg == "--list") {
+            args.listMode = true;
+            if (i + 1 < argc && argv[i+1][0] != '-') {
+                std::string nextArg = argv[i+1];
+                // Verifica se é uma lista de colunas válida (contém vírgula ou é um nome de coluna conhecido)
+                // Colunas conhecidas: name, artist, album, title, genre, year, track, bpm, key, energy, size, duration, bitrate, samplerate
+                std::set<std::string> validCols = {"name", "filename", "artist", "album", "title", "genre", "year", "track", "bpm", "key", "energy", "size", "duration", "bitrate", "samplerate"};
+                
+                bool isColumnList = false;
+                if (nextArg.find(',') != std::string::npos) {
+                    isColumnList = true;
+                } else {
+                    if (validCols.count(toLower(nextArg))) {
+                        isColumnList = true;
+                    }
+                }
+
+                if (isColumnList) {
+                    std::string cols = argv[++i];
+                    std::stringstream ss(cols);
+                    std::string item;
+                    while (std::getline(ss, item, ',')) args.listColumns.push_back(toLower(item));
+                }
+            }
+        }
         else if (arg == "-put-force" || arg == "-putforce") args.putForce = true;
         else if (arg == "-meta") args.meta = true;
         else if (arg == "-o" && i + 1 < argc) args.outputFile = argv[++i];
@@ -1107,6 +1282,27 @@ int main(int argc, char* argv[]) {
             std::stringstream ss(tags);
             std::string item;
             while (std::getline(ss, item, ',')) args.tagsToRemove.push_back(item); // Não converte para lower aqui para permitir tags case-sensitive se necessário
+        }
+        else if ((arg == "-settag" || arg == "-set") && i + 1 < argc) {
+            std::string pair = argv[++i];
+            size_t pos = pair.find('=');
+            if (pos != std::string::npos) {
+                args.tagOps.push_back({pair.substr(0, pos), pair.substr(pos + 1), SET});
+            }
+        }
+        else if ((arg == "-addtag" || arg == "-appendtag" || arg == "-add") && i + 1 < argc) {
+            std::string pair = argv[++i];
+            size_t pos = pair.find('=');
+            if (pos != std::string::npos) {
+                args.tagOps.push_back({pair.substr(0, pos), pair.substr(pos + 1), APPEND});
+            }
+        }
+        else if ((arg == "-pretag" || arg == "-prependtag" || arg == "-pre") && i + 1 < argc) {
+            std::string pair = argv[++i];
+            size_t pos = pair.find('=');
+            if (pos != std::string::npos) {
+                args.tagOps.push_back({pair.substr(0, pos), pair.substr(pos + 1), PREPEND});
+            }
         }
         else if (arg == "-sort" && i + 1 < argc) {
             std::string sort = argv[++i];
@@ -1208,6 +1404,8 @@ int main(int argc, char* argv[]) {
                 res.artist = f.tag()->artist().toCString(true);
                 res.album = f.tag()->album().toCString(true);
                 res.genre = f.tag()->genre().toCString(true);
+                res.year = f.tag()->year();
+                res.track = f.tag()->track();
                 if (f.audioProperties()) {
                     res.bitrate = f.audioProperties()->bitrate();
                     res.sampleRate = f.audioProperties()->sampleRate();
@@ -1319,6 +1517,16 @@ int main(int argc, char* argv[]) {
         log("INFO", "Removendo tags específicas...");
         for (const auto& res : results) {
             removeTags(res.path, args.tagsToRemove);
+        }
+    }
+
+    // ==============================
+    // EDITAR TAGS (Set, Append, Prepend)
+    // ==============================
+    if (!args.tagOps.empty() && !args.listMode) {
+        log("INFO", "Editando tags...");
+        for (const auto& res : results) {
+            applyTagOperations(res.path, args.tagOps);
         }
     }
 
