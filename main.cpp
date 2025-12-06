@@ -423,11 +423,8 @@ std::string cleanAlbumPrefix(const std::string &albumStr)
 // 🏷️ ESCRITA DE TAGS (APENAS A FUNÇÃO writeTags MODIFICADA)
 // ==============================
 
-// ... (Função cleanAlbumPrefix permanece inalterada) ...
-
 void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToWrite, bool force)
 {
-    // Ignora se não há tags para escrever ou se a análise falhou
     if (tagsToWrite.empty() || (res.bpm < 0.1 && res.energy < 0.01))
         return;
 
@@ -450,7 +447,6 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
     if (parts.empty())
         return;
 
-    // Constrói string de comentário: "BPM: 128 | Key: 8A | Energy: 0.85"
     std::string commentStr;
     if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end())
         commentStr += "BPM: " + bpmStr + " | ";
@@ -459,7 +455,7 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
     if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end())
         commentStr += "Energy: " + energyStr + " | ";
     if (commentStr.length() > 3)
-        commentStr = commentStr.substr(0, commentStr.length() - 3); // Remove último " | "
+        commentStr = commentStr.substr(0, commentStr.length() - 3);
 
     std::string newPrefix;
     for (size_t i = 0; i < parts.size(); ++i)
@@ -495,103 +491,179 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
                 finalAlbum = newPrefix + " | " + cleaned;
         }
 
-        tag->setAlbum(finalAlbum);
+        // ========================
+        //     DETECÇÃO DE MUDANÇAS
+        // ========================
+        bool needsSave = false;
 
-        // Escreve no campo de comentário genérico (suportado por quase todos os players)
-        // Isso usa o campo padrão COMMENT, que é lido por todas as libs TagLib.
-        tag->setComment(commentStr);
+        // Álbum
+        if (finalAlbum != currentAlbum)
+            needsSave = true;
 
-        // Escreve tags específicas dependendo do formato do arquivo
-        // MP3 usa ID3v2, OGG/FLAC usam Xiph Comments
+        // Comentário genérico
+        if (tag->comment().toCString(true) != commentStr)
+            needsSave = true;
+
+        // ========================
+        //   MP3 - ID3v2
+        // ========================
         if (TagLib::ID3v2::Tag *id3 = dynamic_cast<TagLib::ID3v2::Tag *>(tag))
         {
-            // === FORMATO MP3 (ID3v2) ===
+            auto eqText = [&](const char *id, const std::string &expected)
+            {
+                auto lst = id3->frameList(id);
+                if (lst.isEmpty())
+                    return expected != "";
+                TagLib::String t = lst.front()->toString();
+                return t.toCString(true) == expected;
+            };
 
-            // Escreve BPM no frame TBPM
             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end())
-            {
-                TagLib::ByteVector frameId("TBPM");
-                // Garante que o texto seja gravado em um formato TextIdentificationFrame
-                if (!id3->frameList(frameId).isEmpty())
-                    id3->removeFrames(frameId);
-                TagLib::ID3v2::TextIdentificationFrame *frame = new TagLib::ID3v2::TextIdentificationFrame(frameId);
-                frame->setText(TagLib::String(bpmStr, TagLib::String::UTF8)); // Use UTF8
-                id3->addFrame(frame);
-            }
+                if (!eqText("TBPM", bpmStr))
+                    needsSave = true;
 
-            // Escreve Key no frame TKEY
             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end())
-            {
-                TagLib::ByteVector frameId("TKEY");
-                if (!id3->frameList(frameId).isEmpty())
-                    id3->removeFrames(frameId);
-                TagLib::ID3v2::TextIdentificationFrame *frame = new TagLib::ID3v2::TextIdentificationFrame(frameId);
-                frame->setText(TagLib::String(keyStr, TagLib::String::UTF8)); // Use UTF8
-                id3->addFrame(frame);
-            }
+                if (!eqText("TKEY", keyStr))
+                    needsSave = true;
 
-            // Escreve Energy em um frame TXXX (user-defined text)
             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end())
             {
-                // Remove frames TXXX com descrição "ENERGY" existentes
+                bool found = false;
                 TagLib::ID3v2::FrameList txxxFrames = id3->frameList("TXXX");
-                std::vector<TagLib::ID3v2::Frame *> framesToRemove;
-                for (TagLib::ID3v2::Frame *frame : txxxFrames)
+                for (auto *frame : txxxFrames)
                 {
-                    if (TagLib::ID3v2::UserTextIdentificationFrame *txxx = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(frame))
+                    if (auto *tx = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(frame))
                     {
-                        // Remove TXXX com descrição "ENERGY"
-                        if (txxx->description().toCString(true) == "ENERGY")
+                        if (tx->description().toCString(true) == std::string("ENERGY"))
                         {
-                            framesToRemove.push_back(frame);
+                            if (tx->toString().toCString(true) != energyStr)
+                                needsSave = true;
+                            found = true;
                         }
                     }
                 }
-                for (TagLib::ID3v2::Frame *frame : framesToRemove)
-                {
-                    id3->removeFrame(frame);
-                }
+                if (!found)
+                    needsSave = true;
+            }
 
-                // Cria novo frame TXXX para Energy (garantindo UTF8 e formato correto)
-                TagLib::ID3v2::UserTextIdentificationFrame *txxx = new TagLib::ID3v2::UserTextIdentificationFrame(TagLib::String::UTF8);
-                txxx->setDescription(TagLib::String("ENERGY", TagLib::String::UTF8)); // A descrição também deve ser um TagLib::String
+            // Comentário COMM
+            {
+                bool found = false;
+                TagLib::ID3v2::FrameList commFrames = id3->frameList("COMM");
+                for (auto *frame : commFrames)
+                {
+                    if (auto *c = dynamic_cast<TagLib::ID3v2::CommentsFrame *>(frame))
+                    {
+                        if (c->description().toCString(true) == std::string("AMALYZER"))
+                        {
+                            if (c->toString().toCString(true) != commentStr)
+                                needsSave = true;
+                            found = true;
+                        }
+                    }
+                }
+                if (!found)
+                    needsSave = true;
+            }
+        }
+
+        // ========================
+        //   OGG / FLAC
+        // ========================
+        else if (TagLib::Ogg::XiphComment *ogg = dynamic_cast<TagLib::Ogg::XiphComment *>(tag))
+        {
+            auto eqField = [&](const char *key, const std::string &expected)
+            {
+                if (!ogg->contains(key))
+                    return expected != "";
+                return ogg->fieldListMap()[key].toString().toCString(true) == expected;
+            };
+
+            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end())
+                if (!eqField("BPM", bpmStr))
+                    needsSave = true;
+
+            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end())
+                if (!eqField("INITIALKEY", keyStr))
+                    needsSave = true;
+
+            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end())
+                if (!eqField("ENERGY", energyStr))
+                    needsSave = true;
+
+            if (!eqField("COMMENT", commentStr))
+                needsSave = true;
+        }
+
+        // Se nada mudou → encerra
+        if (!needsSave)
+            return;
+
+        // ========================
+        //       ESCRITA REAL
+        // ========================
+        tag->setAlbum(finalAlbum);
+        tag->setComment(commentStr);
+
+        if (TagLib::ID3v2::Tag *id3 = dynamic_cast<TagLib::ID3v2::Tag *>(tag))
+        {
+            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end())
+            {
+                TagLib::ByteVector id("TBPM");
+                id3->removeFrames(id);
+                auto *frame = new TagLib::ID3v2::TextIdentificationFrame(id);
+                frame->setText(TagLib::String(bpmStr, TagLib::String::UTF8));
+                id3->addFrame(frame);
+            }
+
+            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end())
+            {
+                TagLib::ByteVector id("TKEY");
+                id3->removeFrames(id);
+                auto *frame = new TagLib::ID3v2::TextIdentificationFrame(id);
+                frame->setText(TagLib::String(keyStr, TagLib::String::UTF8));
+                id3->addFrame(frame);
+            }
+
+            if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end())
+            {
+                TagLib::ID3v2::FrameList txxxFrames = id3->frameList("TXXX");
+                std::vector<TagLib::ID3v2::Frame *> rem;
+                for (auto *frame : txxxFrames)
+                {
+                    if (auto *tx = dynamic_cast<TagLib::ID3v2::UserTextIdentificationFrame *>(frame))
+                        if (tx->description().toCString(true) == std::string("ENERGY"))
+                            rem.push_back(frame);
+                }
+                for (auto *frr : rem)
+                    id3->removeFrame(frr);
+
+                auto *txxx = new TagLib::ID3v2::UserTextIdentificationFrame(TagLib::String::UTF8);
+                txxx->setDescription(TagLib::String("ENERGY", TagLib::String::UTF8));
                 txxx->setText(TagLib::String(energyStr, TagLib::String::UTF8));
                 id3->addFrame(txxx);
             }
 
-            // Adiciona/Atualiza comentário explícito no frame COMM
             TagLib::ByteVector commId("COMM");
-            // Remove frames COMM com descrição "AMALYZER" existentes para evitar duplicação
             TagLib::ID3v2::FrameList commFrames = id3->frameList(commId);
-            std::vector<TagLib::ID3v2::Frame *> commFramesToRemove;
-            for (TagLib::ID3v2::Frame *frame : commFrames)
+            std::vector<TagLib::ID3v2::Frame *> toRemove;
+            for (auto *frame : commFrames)
             {
-                 if (TagLib::ID3v2::CommentsFrame *comm = dynamic_cast<TagLib::ID3v2::CommentsFrame *>(frame))
-                {
-                    if (comm->description().toCString(true) == "AMALYZER")
-                    {
-                        commFramesToRemove.push_back(frame);
-                    }
-                }
+                if (auto *c = dynamic_cast<TagLib::ID3v2::CommentsFrame *>(frame))
+                    if (c->description().toCString(true) == std::string("AMALYZER"))
+                        toRemove.push_back(frame);
             }
-            for (TagLib::ID3v2::Frame *frame : commFramesToRemove)
-            {
-                id3->removeFrame(frame);
-            }
-            
-            // Cria novo frame COMM com descrição "AMALYZER"
-            TagLib::ID3v2::CommentsFrame *commFrame = new TagLib::ID3v2::CommentsFrame(TagLib::String::UTF8);
+            for (auto *fr : toRemove)
+                id3->removeFrame(fr);
+
+            auto *commFrame = new TagLib::ID3v2::CommentsFrame(TagLib::String::UTF8);
             commFrame->setLanguage("eng");
             commFrame->setDescription(TagLib::String("AMALYZER", TagLib::String::UTF8));
             commFrame->setText(TagLib::String(commentStr, TagLib::String::UTF8));
             id3->addFrame(commFrame);
-
         }
         else if (TagLib::Ogg::XiphComment *ogg = dynamic_cast<TagLib::Ogg::XiphComment *>(tag))
         {
-            // === FORMATO OGG/FLAC (Xiph Comments) ===
-            // Xiph Comments lida com UTF-8 nativamente, é mais simples
-            // Ogg::XiphComment::addField substitui o valor se a chave já existir.
             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "bpm") != tagsToWrite.end())
                 ogg->addField("BPM", TagLib::String(bpmStr, TagLib::String::UTF8), true);
             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "key") != tagsToWrite.end())
@@ -599,18 +671,13 @@ void writeTags(const AudioAnalysis &res, const std::vector<std::string> &tagsToW
             if (std::find(tagsToWrite.begin(), tagsToWrite.end(), "energy") != tagsToWrite.end())
                 ogg->addField("ENERGY", TagLib::String(energyStr, TagLib::String::UTF8), true);
 
-            // Adiciona ao campo COMMENT padrão
             ogg->addField("COMMENT", TagLib::String(commentStr, TagLib::String::UTF8), true);
         }
 
         if (f.save())
-        {
             log("SUCCESS", "Tags salvas", res.filename);
-        }
         else
-        {
             log("ERROR", "Falha ao salvar", res.filename);
-        }
     }
     catch (const std::exception &e)
     {
