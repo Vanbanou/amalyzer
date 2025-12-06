@@ -1145,7 +1145,7 @@ void printHelp(const char* progName) {
               << "Opções:\n"
               << "  -r          Recursivo\n"
               << "  -q          Silencioso\n"
-              << "  -l [cols]   Lista rápida (cols opcional: name,artist,size...)\n"
+              << "  -l <cols>   Lista rápida (cols opcional: name,artist,size...)\n"
               << "  -csv        Saída CSV\n"
               << "  -o <file>   Salvar em arquivo\n"
               << "  -meta       Gerar .analisemetadata\n"
