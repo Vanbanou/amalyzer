@@ -66,7 +66,7 @@ sudo apt-get install build-essential cmake libtag1-dev
 #### Compilação
 
 ```bash
-git clone <seu-repositorio>
+git clone https://github.com/Vanbanou/amalyzer.git
 cd amalyzer
 chmod +x ./build.sh
 ./build.sh
