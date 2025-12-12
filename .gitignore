@@ -8,11 +8,6 @@ cmake-build-*/
 *.swp
 *.swo
 
-# Compiled binaries
-amalyzer
-*.o
-*.a
-*.so
 
 # Release archives
 *.zip
