@@ -1,4 +1,4 @@
-name: Build Android Binaries
+name: Build Binaries
 
 on:
   push:
@@ -12,6 +12,7 @@ on:
 env:
   ANDROID_NDK_VERSION: r26d
   ANDROID_PLATFORM: android-24
+  SUPERPOWERED_PATH: external/superpowered
 
 jobs:
   build-android:
@@ -42,18 +43,18 @@ jobs:
             x86) TARGET=i686-linux-android ;;
           esac
 
-          # Build zlib
           git clone --depth=1 https://github.com/madler/zlib.git
           cd zlib
           export CC=$TOOLCHAIN/bin/$TARGET${ANDROID_PLATFORM}-clang
           export AR=$TOOLCHAIN/bin/llvm-ar
           export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+          export CFLAGS="-O2"
+          export CXXFLAGS="-O2"
           ./configure --prefix=$GITHUB_WORKSPACE/android-deps --static
           make -j$(nproc)
           make install
           cd ..
 
-          # Build TagLib
           git clone --depth=1 --recursive https://github.com/taglib/taglib.git
           cd taglib
           cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
@@ -74,13 +75,22 @@ jobs:
           echo "Building amalyzer for ${{ matrix.abi }}..."
           rm -rf build
           mkdir build && cd build
+
+          case "${{ matrix.abi }}" in
+            arm64-v8a) SUPERPOWERED_LIB=$GITHUB_WORKSPACE/${{ env.SUPERPOWERED_PATH }}/lib/libSuperpoweredAndroidarm64-v8a.a ;;
+            armeabi-v7a) SUPERPOWERED_LIB=$GITHUB_WORKSPACE/${{ env.SUPERPOWERED_PATH }}/lib/libSuperpoweredAndroidarmeabi-v7a.a ;;
+            x86_64) SUPERPOWERED_LIB=$GITHUB_WORKSPACE/${{ env.SUPERPOWERED_PATH }}/lib/libSuperpoweredAndroidX86_64.a ;;
+            x86) SUPERPOWERED_LIB=$GITHUB_WORKSPACE/${{ env.SUPERPOWERED_PATH }}/lib/libSuperpoweredAndroidX86.a ;;
+          esac
+
           cmake .. \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=${{ matrix.abi }} \
             -DANDROID_PLATFORM=${ANDROID_PLATFORM} \
             -DCMAKE_BUILD_TYPE=Release \
             -DTAGLIB_STATIC_ROOT=$GITHUB_WORKSPACE/android-deps \
-            -DZLIB_STATIC=$GITHUB_WORKSPACE/android-deps/lib/libz.a
+            -DZLIB_STATIC=$GITHUB_WORKSPACE/android-deps/lib/libz.a \
+            -DSUPERPOWERED_LIB=${SUPERPOWERED_LIB}
           cmake --build . --config Release
 
       - name: Strip binary
@@ -101,3 +111,51 @@ jobs:
         with:
           name: amalyzer-${{ matrix.abi }}
           path: release/amalyzer-${{ matrix.abi }}.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git pkg-config zlib1g-dev
+
+      - name: Build amalyzer
+        run: |
+          echo "Building amalyzer for Linux ${{ matrix.arch }}..."
+          rm -rf build
+          mkdir build && cd build
+
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            export CMAKE_TOOLCHAIN_FILE=""
+          fi
+
+          SUPERPOWERED_LIB=$GITHUB_WORKSPACE/${{ env.SUPERPOWERED_PATH }}/lib/libSuperpoweredLinuxX86_64.a
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then
+            SUPERPOWERED_LIB=$GITHUB_WORKSPACE/${{ env.SUPERPOWERED_PATH }}/lib/libSuperpoweredLinuxARM64.a
+          fi
+
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSUPERPOWERED_LIB=${SUPERPOWERED_LIB}
+          cmake --build . --config Release
+
+      - name: Package binary
+        run: |
+          mkdir -p release/amalyzer-linux-${{ matrix.arch }}
+          cp build/amalyzer release/amalyzer-linux-${{ matrix.arch }}/
+          cp README.md release/amalyzer-linux-${{ matrix.arch }}/ 2>/dev/null || true
+          cd release/amalyzer-linux-${{ matrix.arch }}
+          zip -r ../amalyzer-linux-${{ matrix.arch }}.zip *
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: amalyzer-linux-${{ matrix.arch }}
+          path: release/amalyzer-linux-${{ matrix.arch }}.zip
