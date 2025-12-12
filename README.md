@@ -68,15 +68,8 @@ sudo apt-get install build-essential cmake libtag1-dev
 ```bash
 git clone <seu-repositorio>
 cd amalyzer
-./build_and_run.sh
-```
-
-Ou manualmente:
-
-```bash
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
+chmod +x ./build.sh
+./build.sh
 ```
 
 ## 📖 Uso
@@ -153,41 +146,46 @@ O Amalyzer possui uma interface visual moderna com:
 ## 🔧 Opções Completas
 
 ```
-Uso: ./amalyzer [opções] <arquivos/pastas>
+🎵 Amalyzer - Mobile 🎵
+
+Uso: ./amalyzer [opções] <arquivos>
 
 Opções:
-  -r            Pesquisa recursiva em subdiretórios
-  -q            Modo silencioso
-  -l, --list    Modo de listagem rápida
-  -csv          Gerar saída em CSV
-  -o <arquivo>  Salvar saída em arquivo
-  -meta         Criar arquivos .analisemetadata (JSON)
-  -limit <N>    Analisar apenas os primeiros N arquivos
+  -r          Recursivo
+  -q          Silencioso
+  -l <cols>   Lista rápida (cols opcional: name,artist,size...)
+  -csv        Saída CSV
+  -o <file>   Salvar em arquivo
+  -meta       Gerar .analisemetadata
+  -limit <N>  Limitar a N arquivos
 
 Filtros:
-  -bpm-min <N>  BPM mínimo
-  -bpm-max <N>  BPM máximo
-  -size-min <N> Tamanho mínimo (MB)
-  -size-max <N> Tamanho máximo (MB)
-  -key <K>      Key exata (Camelot, ex: '8B')
-  -ext <list>   Extensões (ex: mp3,flac)
+  -bpm-min/max N   Filtrar por BPM
+  -size-min/max N  Filtrar por tamanho (MB)
+  -key <K>         Filtrar por key (ex: 8B)
+  -ext <list>      Extensões (ex: mp3,flac)
 
-Saída:
-  -sort <list>  Ordenar por campos (name|bpm|size|key|energy|album|artist|title)
-  -put <list>   Escrever tags (bpm|energy|key)
-  -put-force    Forçar substituição do campo Album
+Saída/Tags:
+  -sort <list>     Ordenar (name,bpm,size,key,energy)
+  -put <list>      Escrever tags (bpm,energy,key)
+  -putforce        Forçar escrita (sobrescrever álbum)
+  -config <k=v>    Atualizar configuração (ex: name_w=50)
+  -config          Listar configurações atuais
+  -cover <path>    Embutir imagem de capa (jpg/png)
+  -remcover        Remover imagem de capa
+  -rem <list>      Remover tags específicas (artist,title,album...)
+  -remall          Remover TODAS as tags
+  -settag k=v      Definir tag (ex: artist="Nome")
+  -addtag k=v      Adicionar ao fim da tag (ex: title=" (Remix)")
+  -pretag k=v      Adicionar ao início da tag (ex: title="[Intro] ")
+
+Tags Suportadas (comuns):
+  ARTIST, TITLE, ALBUM, COMMENT, GENRE, YEAR, TRACK, DISC
+  COMPOSER, ALBUMARTIST, ENCODEDBY, COPYRIGHT, URL, BPM, INITIALKEY
+
+Ex: ./amalyzer -r -put bpm,key -sort bpm ./musicas
 ```
-
-## 🏗️ Arquitetura
-
-- **main.cpp** - Interface CLI e lógica principal
-- **analyzer.h** - Classe Amalyzer com integração Superpowered
-- **Superpowered SDK** - Engine de análise de áudio de alta performance
 
 ## 🤝 Contribuindo
 
 Contribuições são bem-vindas! Por favor, abra uma issue ou pull request.
-
-## 🐛 Reportar Bugs
-
-Encontrou um bug? Abra uma [issue](../../issues) com detalhes sobre o problema.
