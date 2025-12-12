@@ -1,94 +1,118 @@
-# GitHub Actions - Workflows de Build
+---
 
-Este projeto usa GitHub Actions para compilação automática de binários.
+# amalyzer - GitHub Actions Workflows
+
+Este projeto utiliza **GitHub Actions** para compilação automática de binários em múltiplas plataformas, incluindo Linux e Android.
+
+---
 
 ## 📋 Workflows Disponíveis
 
-### 1. Build on Push (`build-on-push.yml`)
-- **Trigger**: Push em branches `main`, `master`, `develop`
-- **Objetivo**: Teste rápido de compilação
-- **Plataforma**: Linux x64
-- **Duração**: ~2-3 minutos
+### 1. Build on Push
 
-### 2. Build Release (`build-release.yml`)
-- **Trigger**: 
-  - Push em `main`/`master`
-  - Tags `v*` (ex: `v1.0.0`)
-  - Manual via workflow_dispatch
-- **Objetivo**: Criar binários de release
-- **Plataformas**: 
-  - Linux x64
-  - Linux ARM64 (via Docker/QEMU)
-- **Artefatos**: Arquivos `.tar.gz` com binários
-- **Release**: Automático quando tag `v*` é criada
+* **Arquivo:** `.github/workflows/build-on-push.yml`
+* **Trigger:** Push em branches `main`, `master`, `develop`
+* **Objetivo:** Teste rápido de compilação
+* **Plataforma:** Linux x64
+* **Artefato:** Apenas logs de build
+* **Duração:** ~2-3 minutos
+
+### 2. Build Release
+
+* **Arquivo:** `.github/workflows/build-release.yml`
+* **Trigger:**
+
+  * Push em `main` ou `master`
+  * Tag `v*` (ex: `v1.0.0`)
+  * Manual via `workflow_dispatch`
+* **Objetivo:** Criar binários de release
+* **Plataformas:**
+
+  * Linux x64
+  * Linux ARM64
+  * Android (ARM64, ARMv7, x86_64, x86)
+* **Artefatos:** `.tar.gz` ou `.zip` contendo:
+
+  * Binário `amalyzer`
+  * `README.md`
+* **Release:** Criada automaticamente quando tag `v*` é detectada
+
+---
 
 ## 🚀 Como Usar
 
 ### Teste Rápido
-Apenas faça push do código:
+
+1. Faça alterações no código:
+
 ```bash
 git add .
 git commit -m "Minha alteração"
 git push
 ```
 
-O workflow `build-on-push.yml` irá compilar e testar automaticamente.
+2. O workflow `build-on-push` será executado automaticamente e reportará erros de compilação.
 
 ### Criar Release
 
-1. **Criar uma tag de versão:**
+1. Crie uma tag de versão:
+
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-2. **O workflow irá:**
-   - Compilar para Linux x64
-   - Compilar para Linux ARM64
-   - Criar uma release no GitHub
-   - Anexar os binários à release
+2. O workflow `build-release` irá:
 
-3. **Baixar os binários:**
-   - Vá para a página de [Releases](../../releases)
-   - Baixe `amalyzer-linux-x64.tar.gz` ou `amalyzer-linux-arm64.tar.gz`
+   * Compilar binários para todas as plataformas configuradas
+   * Criar a release no GitHub
+   * Anexar os artefatos correspondentes
+
+3. Baixe os binários na página de [Releases](../../releases).
 
 ### Executar Manualmente
 
-1. Vá para a aba **Actions** no GitHub
-2. Selecione **Build Release Binaries**
-3. Clique em **Run workflow**
-4. Escolha a branch e execute
+1. Vá para a aba **Actions** no GitHub.
+2. Selecione **Build Release Binaries**.
+3. Clique em **Run workflow**, escolha a branch e execute.
 
-## 📦 Artefatos
+---
 
-Os workflows geram os seguintes artefatos:
+## 📦 Artefatos Gerados
 
-- `amalyzer-linux-x64.tar.gz` - Binário para Linux x86_64
-- `amalyzer-linux-arm64.tar.gz` - Binário para Linux ARM64
+| Plataforma     | Arquivo                            |
+| -------------- | ---------------------------------- |
+| Linux x64      | `amalyzer-linux-x64.tar.gz`        |
+| Linux ARM64    | `amalyzer-linux-arm64.tar.gz`      |
+| Android ARM64  | `amalyzer-android-arm64.zip`       |
+| Android ARMv7  | `amalyzer-android-armeabi-v7a.zip` |
+| Android x86_64 | `amalyzer-android-x86_64.zip`      |
+| Android x86    | `amalyzer-android-x86.zip`         |
 
-Cada arquivo contém:
-- Binário `amalyzer`
-- README.md
+Cada pacote inclui o binário `amalyzer` e o `README.md`.
+Artefatos expiram após 90 dias; releases com tag permanecem permanentemente.
+
+---
 
 ## 🔧 Configuração
 
 ### Dependências Instaladas Automaticamente
-- build-essential
-- cmake
-- libtag1-dev
-- git
 
-### Cross-compilation ARM64
-O workflow usa:
-- **QEMU** para emulação ARM64
-- **Docker Buildx** para builds multi-arquitetura
-- **arm64v8/ubuntu:22.04** como imagem base
+* Linux: `build-essential`, `cmake`, `git`, `pkg-config`, `zlib1g-dev`, `libtag1-dev`
+* Android: NDK (versão r26d), cross-compilation toolchain
+
+### Cross-compilation Android
+
+* Suporta múltiplas ABIs: ARM64, ARMv7, x86_64 e x86
+* NDK + toolchain configurados no workflow
+
+---
 
 ## ⚙️ Personalização
 
 ### Adicionar Novas Plataformas
 
-Para adicionar suporte a outras plataformas, edite `.github/workflows/build-release.yml`:
+Edite o workflow `.github/workflows/build-release.yml` adicionando novos jobs. Exemplo MacOS:
 
 ```yaml
 build-macos:
@@ -102,42 +126,29 @@ build-macos:
         make
 ```
 
-### Modificar Versões de Dependências
+### Modificar Dependências
 
-Edite a seção de instalação de dependências:
+Altere a seção de instalação:
 
 ```yaml
 - name: Install dependencies
   run: |
-    sudo apt-get install -y \
-      build-essential \
-      cmake \
-      libtag1-dev \
-      sua-dependencia-aqui
+    sudo apt-get install -y build-essential cmake libtag1-dev git pkg-config zlib1g-dev
 ```
+
+---
 
 ## 🐛 Troubleshooting
 
-### Build Falha no ARM64
-- Verifique se o QEMU está configurado corretamente
-- Aumente o timeout se necessário
-- Verifique logs em Actions → Build logs
+* **Build falha em ARM64**: Verifique QEMU/Docker para cross-compilation
+* **Release não criada**: Certifique-se que a tag começa com `v`
+* **Artefatos não aparecem**: Confirme que o build completou com sucesso
 
-### Release Não é Criada
-- Certifique-se de que a tag começa com `v` (ex: `v1.0.0`)
-- Verifique permissões do `GITHUB_TOKEN`
-- Confirme que ambos os builds (x64 e ARM64) foram bem-sucedidos
-
-### Artefatos Não Aparecem
-- Verifique se o build completou com sucesso
-- Artefatos expiram após 90 dias por padrão
-- Para releases com tags, os binários ficam permanentes
+---
 
 ## 📊 Status dos Workflows
 
-Veja o status atual dos workflows na aba **Actions** do repositório.
-
-Badges de status (adicione ao README principal):
+Adicione badges no README principal:
 
 ```markdown
 ![Build Status](https://github.com/seu-usuario/amalyzer/workflows/Build%20on%20Push/badge.svg)

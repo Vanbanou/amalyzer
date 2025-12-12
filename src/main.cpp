@@ -45,6 +45,8 @@
 #include <taglib/xiphcomment.h>             // Comentários Xiph (OGG/FLAC)
 #include <taglib/tpropertymap.h>            // Mapa de propriedades genérico
 
+#include "Superpowered.h"
+
 // Alias para facilitar o uso do namespace filesystem
 namespace fs = std::filesystem;
 
@@ -1826,7 +1828,7 @@ int main(int argc, char *argv[])
 
     // Inicializa o SDK Superpowered (necessário para análise de áudio)
     Superpowered::Initialize("ExampleLicenseKey-WillExpire-OnNextUpdate");
-    Amalyzer amalyzer; // Instância do analisador de áudio
+    Analyzer analyzer; // Instância do analisador de áudio
 
     // ==============================
     // BUSCA DE ARQUIVOS
@@ -1917,7 +1919,7 @@ int main(int argc, char *argv[])
         if (!args.listMode)
         {
             // Perform Audio Analysis
-            AudioAnalysis analysis = amalyzer.analyze(fpath);
+            AudioAnalysis analysis = analyzer.analyze(fpath);
             if (analysis.success)
             {
                 res.bpm = analysis.bpm;
