@@ -1,0 +1,3 @@
+/home/vanbanou/Documentos/Cpp/amalyzer/build/CMakeFiles/amalyzer.dir
+/home/vanbanou/Documentos/Cpp/amalyzer/build/CMakeFiles/edit_cache.dir
+/home/vanbanou/Documentos/Cpp/amalyzer/build/CMakeFiles/rebuild_cache.dir

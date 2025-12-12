@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/vanbanou/Documentos/Cpp/amalyzer/external/superpowered/include -I/usr/include/taglib
+CXX_INCLUDES = -I/home/vanbanou/Documentos/Cpp/amalyzer/superpowered -I/home/vanbanou/Documentos/Cpp/amalyzer/src -I/usr/include/taglib
 
 CXX_FLAGS = -std=gnu++17
 

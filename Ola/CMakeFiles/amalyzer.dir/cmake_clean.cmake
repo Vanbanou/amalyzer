@@ -1,6 +1,4 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/amalyzer.dir/src/analyzer.cpp.o"
-  "CMakeFiles/amalyzer.dir/src/analyzer.cpp.o.d"
   "CMakeFiles/amalyzer.dir/src/config_manager.cpp.o"
   "CMakeFiles/amalyzer.dir/src/config_manager.cpp.o.d"
   "CMakeFiles/amalyzer.dir/src/main.cpp.o"

@@ -129,53 +129,77 @@ amalyzer/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/build
 .PHONY : amalyzer/fast
 
-config_manager.o: config_manager.cpp.o
-.PHONY : config_manager.o
+src/analyzer.o: src/analyzer.cpp.o
+.PHONY : src/analyzer.o
 
 # target to build an object file
-config_manager.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/config_manager.cpp.o
-.PHONY : config_manager.cpp.o
+src/analyzer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/analyzer.cpp.o
+.PHONY : src/analyzer.cpp.o
 
-config_manager.i: config_manager.cpp.i
-.PHONY : config_manager.i
+src/analyzer.i: src/analyzer.cpp.i
+.PHONY : src/analyzer.i
 
 # target to preprocess a source file
-config_manager.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/config_manager.cpp.i
-.PHONY : config_manager.cpp.i
+src/analyzer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/analyzer.cpp.i
+.PHONY : src/analyzer.cpp.i
 
-config_manager.s: config_manager.cpp.s
-.PHONY : config_manager.s
+src/analyzer.s: src/analyzer.cpp.s
+.PHONY : src/analyzer.s
 
 # target to generate assembly for a file
-config_manager.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/config_manager.cpp.s
-.PHONY : config_manager.cpp.s
+src/analyzer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/analyzer.cpp.s
+.PHONY : src/analyzer.cpp.s
 
-main.o: main.cpp.o
-.PHONY : main.o
+src/config_manager.o: src/config_manager.cpp.o
+.PHONY : src/config_manager.o
 
 # target to build an object file
-main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/main.cpp.o
-.PHONY : main.cpp.o
+src/config_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/config_manager.cpp.o
+.PHONY : src/config_manager.cpp.o
 
-main.i: main.cpp.i
-.PHONY : main.i
+src/config_manager.i: src/config_manager.cpp.i
+.PHONY : src/config_manager.i
 
 # target to preprocess a source file
-main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/main.cpp.i
-.PHONY : main.cpp.i
+src/config_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/config_manager.cpp.i
+.PHONY : src/config_manager.cpp.i
 
-main.s: main.cpp.s
-.PHONY : main.s
+src/config_manager.s: src/config_manager.cpp.s
+.PHONY : src/config_manager.s
 
 # target to generate assembly for a file
-main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/main.cpp.s
-.PHONY : main.cpp.s
+src/config_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/config_manager.cpp.s
+.PHONY : src/config_manager.cpp.s
+
+src/main.o: src/main.cpp.o
+.PHONY : src/main.o
+
+# target to build an object file
+src/main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/main.cpp.o
+.PHONY : src/main.cpp.o
+
+src/main.i: src/main.cpp.i
+.PHONY : src/main.i
+
+# target to preprocess a source file
+src/main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/main.cpp.i
+.PHONY : src/main.cpp.i
+
+src/main.s: src/main.cpp.s
+.PHONY : src/main.s
+
+# target to generate assembly for a file
+src/main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/amalyzer.dir/build.make CMakeFiles/amalyzer.dir/src/main.cpp.s
+.PHONY : src/main.cpp.s
 
 # Help Target
 help:
@@ -186,12 +210,15 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... amalyzer"
-	@echo "... config_manager.o"
-	@echo "... config_manager.i"
-	@echo "... config_manager.s"
-	@echo "... main.o"
-	@echo "... main.i"
-	@echo "... main.s"
+	@echo "... src/analyzer.o"
+	@echo "... src/analyzer.i"
+	@echo "... src/analyzer.s"
+	@echo "... src/config_manager.o"
+	@echo "... src/config_manager.i"
+	@echo "... src/config_manager.s"
+	@echo "... src/main.o"
+	@echo "... src/main.i"
+	@echo "... src/main.s"
 .PHONY : help
 
 

@@ -1,0 +1,23 @@
+# Build directories
+build/
+cmake-build-*/
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Compiled binaries
+amalyzer
+*.o
+*.a
+*.so
+
+# Release archives
+*.zip
+*.tar.gz
+
+# System files
+.DS_Store
+Thumbs.db

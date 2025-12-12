@@ -69,19 +69,19 @@ include CMakeFiles/amalyzer.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/amalyzer.dir/flags.make
 
-CMakeFiles/amalyzer.dir/src/analyzer.cpp.o: CMakeFiles/amalyzer.dir/flags.make
-CMakeFiles/amalyzer.dir/src/analyzer.cpp.o: /home/vanbanou/Documentos/Cpp/amalyzer/src/analyzer.cpp
-CMakeFiles/amalyzer.dir/src/analyzer.cpp.o: CMakeFiles/amalyzer.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/vanbanou/Documentos/Cpp/amalyzer/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/amalyzer.dir/src/analyzer.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/amalyzer.dir/src/analyzer.cpp.o -MF CMakeFiles/amalyzer.dir/src/analyzer.cpp.o.d -o CMakeFiles/amalyzer.dir/src/analyzer.cpp.o -c /home/vanbanou/Documentos/Cpp/amalyzer/src/analyzer.cpp
+CMakeFiles/amalyzer.dir/src/main.cpp.o: CMakeFiles/amalyzer.dir/flags.make
+CMakeFiles/amalyzer.dir/src/main.cpp.o: /home/vanbanou/Documentos/Cpp/amalyzer/src/main.cpp
+CMakeFiles/amalyzer.dir/src/main.cpp.o: CMakeFiles/amalyzer.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/vanbanou/Documentos/Cpp/amalyzer/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/amalyzer.dir/src/main.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/amalyzer.dir/src/main.cpp.o -MF CMakeFiles/amalyzer.dir/src/main.cpp.o.d -o CMakeFiles/amalyzer.dir/src/main.cpp.o -c /home/vanbanou/Documentos/Cpp/amalyzer/src/main.cpp
 
-CMakeFiles/amalyzer.dir/src/analyzer.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/amalyzer.dir/src/analyzer.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/vanbanou/Documentos/Cpp/amalyzer/src/analyzer.cpp > CMakeFiles/amalyzer.dir/src/analyzer.cpp.i
+CMakeFiles/amalyzer.dir/src/main.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/amalyzer.dir/src/main.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/vanbanou/Documentos/Cpp/amalyzer/src/main.cpp > CMakeFiles/amalyzer.dir/src/main.cpp.i
 
-CMakeFiles/amalyzer.dir/src/analyzer.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/amalyzer.dir/src/analyzer.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/vanbanou/Documentos/Cpp/amalyzer/src/analyzer.cpp -o CMakeFiles/amalyzer.dir/src/analyzer.cpp.s
+CMakeFiles/amalyzer.dir/src/main.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/amalyzer.dir/src/main.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/vanbanou/Documentos/Cpp/amalyzer/src/main.cpp -o CMakeFiles/amalyzer.dir/src/main.cpp.s
 
 CMakeFiles/amalyzer.dir/src/config_manager.cpp.o: CMakeFiles/amalyzer.dir/flags.make
 CMakeFiles/amalyzer.dir/src/config_manager.cpp.o: /home/vanbanou/Documentos/Cpp/amalyzer/src/config_manager.cpp
@@ -97,37 +97,21 @@ CMakeFiles/amalyzer.dir/src/config_manager.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/amalyzer.dir/src/config_manager.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/vanbanou/Documentos/Cpp/amalyzer/src/config_manager.cpp -o CMakeFiles/amalyzer.dir/src/config_manager.cpp.s
 
-CMakeFiles/amalyzer.dir/src/main.cpp.o: CMakeFiles/amalyzer.dir/flags.make
-CMakeFiles/amalyzer.dir/src/main.cpp.o: /home/vanbanou/Documentos/Cpp/amalyzer/src/main.cpp
-CMakeFiles/amalyzer.dir/src/main.cpp.o: CMakeFiles/amalyzer.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/vanbanou/Documentos/Cpp/amalyzer/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/amalyzer.dir/src/main.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/amalyzer.dir/src/main.cpp.o -MF CMakeFiles/amalyzer.dir/src/main.cpp.o.d -o CMakeFiles/amalyzer.dir/src/main.cpp.o -c /home/vanbanou/Documentos/Cpp/amalyzer/src/main.cpp
-
-CMakeFiles/amalyzer.dir/src/main.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/amalyzer.dir/src/main.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/vanbanou/Documentos/Cpp/amalyzer/src/main.cpp > CMakeFiles/amalyzer.dir/src/main.cpp.i
-
-CMakeFiles/amalyzer.dir/src/main.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/amalyzer.dir/src/main.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/vanbanou/Documentos/Cpp/amalyzer/src/main.cpp -o CMakeFiles/amalyzer.dir/src/main.cpp.s
-
 # Object files for target amalyzer
 amalyzer_OBJECTS = \
-"CMakeFiles/amalyzer.dir/src/analyzer.cpp.o" \
-"CMakeFiles/amalyzer.dir/src/config_manager.cpp.o" \
-"CMakeFiles/amalyzer.dir/src/main.cpp.o"
+"CMakeFiles/amalyzer.dir/src/main.cpp.o" \
+"CMakeFiles/amalyzer.dir/src/config_manager.cpp.o"
 
 # External object files for target amalyzer
 amalyzer_EXTERNAL_OBJECTS =
 
-amalyzer: CMakeFiles/amalyzer.dir/src/analyzer.cpp.o
-amalyzer: CMakeFiles/amalyzer.dir/src/config_manager.cpp.o
 amalyzer: CMakeFiles/amalyzer.dir/src/main.cpp.o
+amalyzer: CMakeFiles/amalyzer.dir/src/config_manager.cpp.o
 amalyzer: CMakeFiles/amalyzer.dir/build.make
-amalyzer: /home/vanbanou/Documentos/Cpp/amalyzer/external/superpowered/lib/libSuperpoweredLinuxX86_64.a
+amalyzer: /home/vanbanou/Documentos/Cpp/amalyzer/superpowered/libSuperpoweredLinuxX86_64.a
 amalyzer: /usr/lib/x86_64-linux-gnu/libz.a
 amalyzer: CMakeFiles/amalyzer.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/vanbanou/Documentos/Cpp/amalyzer/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable amalyzer"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/vanbanou/Documentos/Cpp/amalyzer/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable amalyzer"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/amalyzer.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
