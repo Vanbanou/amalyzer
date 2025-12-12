@@ -9,6 +9,11 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+env:
+  # Definindo NDK e API como variáveis de ambiente para uso consistente
+  ANDROID_NDK_VERSION: r26d
+  ANDROID_PLATFORM: android-24
+
 jobs:
   build-linux-x64:
     runs-on: ubuntu-latest
@@ -20,7 +25,19 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake git pkg-config zlib1g-dev
+        # Removido zlib1g-dev do apt-get e movido para build estático
+        sudo apt-get install -y build-essential cmake git pkg-config
+
+    - name: Build static zlib
+      run: |
+        # Build zlib estático, pois TagLib e amalyzer serão linkados estaticamente
+        git clone --depth=1 https://github.com/madler/zlib.git
+        cd zlib
+        cmake -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/linux-deps \
+              -DBUILD_SHARED_LIBS=OFF .
+        make -j$(nproc)
+        make install
 
     - name: Build static TagLib
       run: |
@@ -29,7 +46,9 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_SHARED_LIBS=OFF \
               -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-              -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/taglib-static .
+              -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/linux-deps \
+              -DZLIB_LIBRARY=$GITHUB_WORKSPACE/linux-deps/lib/libz.a \
+              -DZLIB_INCLUDE_DIR=$GITHUB_WORKSPACE/linux-deps/include .
         make -j$(nproc)
         make install
 
@@ -39,7 +58,10 @@ jobs:
         mkdir build
         cd build
 
-        cmake .. -DTAGLIB_STATIC_ROOT="$GITHUB_WORKSPACE/taglib-static"
+        cmake .. \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DTAGLIB_STATIC_ROOT=$GITHUB_WORKSPACE/linux-deps \
+          -DZLIB_STATIC=$GITHUB_WORKSPACE/linux-deps/lib/libz.a
         cmake --build . --config Release
 
     - name: Package binary (ZIP)
@@ -48,7 +70,7 @@ jobs:
         cp build/amalyzer release/amalyzer-linux-x64/
         cp README.md release/amalyzer-linux-x64/ 2>/dev/null || true
         cd release/amalyzer-linux-x64
-        zip ../amalyzer-linux-x64.zip *
+        zip -r ../amalyzer-linux-x64.zip *
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -56,113 +78,147 @@ jobs:
         name: amalyzer-linux-x64
         path: release/amalyzer-linux-x64.zip
 
-  build-android-arm64:
+  build-android:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        # ABIs do Android que serão construídas
+        abi: [arm64-v8a, armeabi-v7a, x86_64, x86]
+    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Android NDK
-      uses: nttld/setup-ndk@v1
-      with:
-        ndk-version: r26d
-        add-to-path: true
+      # Usando uma action NDK estável e popular para evitar o erro 'Unable to resolve action'
+      - name: Setup Android NDK
+        uses: android-actions/setup-android@v3
+        with:
+          ndk: ${{ env.ANDROID_NDK_VERSION }}
+          # A action android-actions/setup-android define $ANDROID_NDK_ROOT
+          
+      - name: Set NDK path for scripts
+        run: |
+          # Define ANDROID_NDK_HOME e LATEST_HOME para compatibilidade com o script de build
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_ROOT" >> $GITHUB_ENV
+          echo "ANDROID_NDK_LATEST_HOME=$ANDROID_NDK_ROOT" >> $GITHUB_ENV
 
-    - name: Build static TagLib for Android
-      run: |
-        export ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME
-        export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
-        export TARGET=aarch64-linux-android
-        export API=24
-        
-        # Build zlib first
-        git clone --depth=1 https://github.com/madler/zlib.git
-        cd zlib
-        export CC=$TOOLCHAIN/bin/$TARGET$API-clang
-        export AR=$TOOLCHAIN/bin/llvm-ar
-        export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
-        ./configure --prefix=$GITHUB_WORKSPACE/android-deps --static
-        make -j$(nproc)
-        make install
-        cd ..
-        
-        # Build TagLib
-        git clone --depth=1 --recursive https://github.com/taglib/taglib.git
-        cd taglib
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-              -DANDROID_ABI=arm64-v8a \
-              -DANDROID_PLATFORM=android-24 \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_SHARED_LIBS=OFF \
-              -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-              -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/android-deps \
-              -DZLIB_LIBRARY=$GITHUB_WORKSPACE/android-deps/lib/libz.a \
-              -DZLIB_INCLUDE_DIR=$GITHUB_WORKSPACE/android-deps/include .
-        make -j$(nproc)
-        make install
+      - name: Build dependencies (zlib + TagLib)
+        run: |
+          set -e
+          export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
 
-    - name: Build amalyzer for Android
-      run: |
-        export ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME
-        
-        rm -rf build
-        mkdir build
-        cd build
-        
-        cmake .. \
+          # Mapeamento do ABI para o Target Triple usado pelo NDK Toolchain
+          case "${{ matrix.abi }}" in
+            arm64-v8a) TARGET=aarch64-linux-android; API=${{ env.ANDROID_PLATFORM }} ;;
+            armeabi-v7a) TARGET=armv7a-linux-androideabi; API=${{ env.ANDROID_PLATFORM }} ;;
+            x86_64) TARGET=x86_64-linux-android; API=${{ env.ANDROID_PLATFORM }} ;;
+            x86) TARGET=i686-linux-android; API=${{ env.ANDROID_PLATFORM }} ;;
+          esac
+
+          mkdir -p $GITHUB_WORKSPACE/android-deps
+
+          # Build zlib
+          git clone --depth=1 https://github.com/madler/zlib.git
+          cd zlib
+          export CC=$TOOLCHAIN/bin/$TARGET$API-clang
+          export AR=$TOOLCHAIN/bin/llvm-ar
+          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+          ./configure --prefix=$GITHUB_WORKSPACE/android-deps --static
+          make -j$(nproc)
+          make install
+          cd ..
+
+          # Build TagLib
+          git clone --depth=1 --recursive https://github.com/taglib/taglib.git
+          cd taglib
+          cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
+                -DANDROID_ABI=${{ matrix.abi }} \
+                -DANDROID_PLATFORM=${{ env.ANDROID_PLATFORM }} \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DBUILD_SHARED_LIBS=OFF \
+                -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/android-deps \
+                -DZLIB_LIBRARY=$GITHUB_WORKSPACE/android-deps/lib/libz.a \
+                -DZLIB_INCLUDE_DIR=$GITHUB_WORKSPACE/android-deps/include .
+          make -j$(nproc)
+          make install
+
+      - name: Build amalyzer for Android
+        run: |
+          rm -rf build
+          mkdir build && cd build
+          cmake .. \
           -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
-          -DANDROID_ABI=arm64-v8a \
-          -DANDROID_PLATFORM=android-24 \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DTAGLIB_STATIC_ROOT=$GITHUB_WORKSPACE/android-deps \
-          -DZLIB_STATIC=$GITHUB_WORKSPACE/android-deps/lib/libz.a
-        
-        cmake --build . --config Release
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DANDROID_PLATFORM=${{ env.ANDROID_PLATFORM }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DTAGLIB_STATIC_ROOT=$GITHUB_WORKSPACE/android-deps \
+            -DZLIB_STATIC=$GITHUB_WORKSPACE/android-deps/lib/libz.a
+          cmake --build . --config Release
 
-    - name: Strip binary
-      run: |
-        $ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip build/amalyzer
+      - name: Strip binary
+        run: |
+          $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip build/amalyzer
 
-    - name: Package binary (ZIP)
-      run: |
-        mkdir -p release/amalyzer-android-arm64
-        cp build/amalyzer release/amalyzer-android-arm64/
-        cp README.md release/amalyzer-android-arm64/ 2>/dev/null || true
-        echo "Built for Android ARM64 (Termux compatible)" > release/amalyzer-android-arm64/ANDROID.txt
-        cd release/amalyzer-android-arm64
-        zip ../amalyzer-android-arm64.zip *
+      - name: Package binary (ZIP)
+        run: |
+          mkdir -p release/amalyzer-${{ matrix.abi }}
+          cp build/amalyzer release/amalyzer-${{ matrix.abi }}/
+          cp README.md release/amalyzer-${{ matrix.abi }}/ 2>/dev/null || true
+          echo "Built for Android ABI: ${{ matrix.abi }}" > release/amalyzer-${{ matrix.abi }}/ANDROID.txt
+          cd release/amalyzer-${{ matrix.abi }}
+          zip -r ../amalyzer-${{ matrix.abi }}.zip *
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: amalyzer-android-arm64
-        path: release/amalyzer-android-arm64.zip
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: amalyzer-android-${{ matrix.abi }}
+          path: release/amalyzer-${{ matrix.abi }}.zip
 
   create-release:
-    needs: [build-linux-x64, build-android-arm64]
+    # Depende de todos os builds do Android (build-android) e do build Linux
+    needs: [build-linux-x64, build-android] 
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-    - name: Download x64 artifact
-      uses: actions/download-artifact@v4
+    - name: Download all artifacts
+      uses: actions/github-script@v7
       with:
-        name: amalyzer-linux-x64
-        path: ./artifacts
+        script: |
+          const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+             owner: context.repo.owner,
+             repo: context.repo.repo,
+             run_id: context.runId,
+          });
+          
+          for (const artifact of artifacts.data.artifacts) {
+              const download = await github.rest.actions.downloadArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                  archive_format: 'zip',
+              });
+              
+              const fs = require('fs');
+              const path = require('path');
+              const { extract } = require('zip-promise');
 
-    - name: Download Android ARM64 artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: amalyzer-android-arm64
-        path: ./artifacts
+              // Create artifact directory
+              fs.mkdirSync(path.join(process.cwd(), 'artifacts', artifact.name), { recursive: true });
+
+              // Save zip file
+              fs.writeFileSync(path.join(process.cwd(), 'artifacts', `${artifact.name}.zip`), Buffer.from(download.data));
+
+              // Extract zip file to be included in release
+              await extract(path.join(process.cwd(), 'artifacts', `${artifact.name}.zip`), path.join(process.cwd(), 'artifacts'));
+          }
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          ./artifacts/amalyzer-linux-x64.zip
-          ./artifacts/amalyzer-android-arm64.zip
+          ./artifacts/*.zip
         draft: false
         prerelease: false
         generate_release_notes: true
