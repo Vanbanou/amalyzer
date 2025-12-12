@@ -1,4 +1,78 @@
-build-android:
+name: Build Release Binaries (Static)
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  ANDROID_NDK_VERSION: r26d
+  ANDROID_PLATFORM: android-24
+
+jobs:
+  build-linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git pkg-config
+
+      - name: Build static zlib
+        run: |
+          git clone --depth=1 https://github.com/madler/zlib.git
+          cd zlib
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/linux-deps \
+                -DBUILD_SHARED_LIBS=OFF .
+          make -j$(nproc)
+          make install
+
+      - name: Build static TagLib
+        run: |
+          git clone --depth=1 --recursive https://github.com/taglib/taglib.git
+          cd taglib
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DBUILD_SHARED_LIBS=OFF \
+                -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+                -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/linux-deps \
+                -DZLIB_LIBRARY=$GITHUB_WORKSPACE/linux-deps/lib/libz.a \
+                -DZLIB_INCLUDE_DIR=$GITHUB_WORKSPACE/linux-deps/include .
+          make -j$(nproc)
+          make install
+
+      - name: Build amalyzer
+        run: |
+          rm -rf build
+          mkdir build && cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DTAGLIB_STATIC_ROOT=$GITHUB_WORKSPACE/linux-deps \
+            -DZLIB_STATIC=$GITHUB_WORKSPACE/linux-deps/lib/libz.a
+          cmake --build . --config Release
+
+      - name: Package binary
+        run: |
+          mkdir -p release/amalyzer-linux-x64
+          cp build/amalyzer release/amalyzer-linux-x64/
+          cp README.md release/amalyzer-linux-x64/ 2>/dev/null || true
+          cd release/amalyzer-linux-x64
+          zip -r ../amalyzer-linux-x64.zip *
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: amalyzer-linux-x64
+          path: release/amalyzer-linux-x64.zip
+
+  build-android:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -14,15 +88,14 @@ build-android:
 
       - name: Set NDK path and Home
         run: |
-          # A action r0adkll/setup-android define $ANDROID_NDK_ROOT, mas o seu script usa ANDROID_NDK_HOME.
-          # Vamos garantir que ANDROID_NDK_HOME esteja definido corretamente.
+          # ANDROID_NDK_ROOT é definida pela action r0adkll/setup-android@v3
           echo "ANDROID_NDK_HOME=${ANDROID_NDK_ROOT}" >> $GITHUB_ENV
-          echo "ANDROID_NDK_LATEST_HOME=${ANDROID_NDK_ROOT}" >> $GITHUB_ENV # Manter compatibilidade com o script 'Build dependencies'
+          echo "ANDROID_NDK_LATEST_HOME=${ANDROID_NDK_ROOT}" >> $GITHUB_ENV
 
       - name: Build dependencies (zlib + TagLib)
         run: |
           set -e
-          # NOTA: Usando ANDROID_NDK_HOME/LATEST_HOME definido no step anterior
+          export ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME
           export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
 
           case "${{ matrix.abi }}" in
